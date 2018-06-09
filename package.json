@@ -1,0 +1,27 @@
+{
+	"name": "rofresh",
+	"version": "1.0.0",
+	"description": "An automated sync plugin for Roblox Studio",
+	"main": "bin/rofresh.js",
+	"scripts": {},
+	"bin": {
+		"rofresh": "./bin/exec.js"
+	},
+	"author": "Osyris",
+	"license": "ISC",
+	"devDependencies": {
+		"@types/chokidar": "^1.7.5",
+		"@types/mz": "0.0.32",
+		"@types/node": "^10.3.1",
+		"@types/npm": "^2.0.29",
+		"@types/uuid": "^3.4.3",
+		"tslint": "^5.10.0",
+		"typescript": "^3.0.0-dev.20180608"
+	},
+	"dependencies": {
+		"chokidar": "^2.0.3",
+		"commander": "^2.15.1",
+		"mz": "^2.7.0",
+		"uuid": "^3.2.1"
+	}
+}
