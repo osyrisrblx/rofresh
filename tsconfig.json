@@ -6,7 +6,7 @@
 		"target": "es6",
 		"strict": true,
 		"declaration": true,
-		"declarationDir": "bin/types"
+		"declarationDir": "typings"
 	},
 	"exclude": [
 		"node_modules"
