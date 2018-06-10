@@ -1,9 +1,11 @@
 {
 	"name": "rofresh",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "An automated sync plugin for Roblox Studio",
 	"main": "bin/rofresh.js",
-	"scripts": {},
+	"scripts": {
+		"lint": "./node_modules/.bin/tslint --project ./tsconfig.json"
+	},
 	"bin": {
 		"rofresh": "./bin/exec.js"
 	},

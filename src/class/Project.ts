@@ -33,6 +33,7 @@ function getFileTypeExtensionByExtension(ext: string) {
 	return "";
 }
 
+/*
 function getFileTypeExtensionByType(type: string) {
 	for (const pair of FILE_TYPE_EXTENSIONS) {
 		if (pair[1] === type) {
@@ -41,6 +42,7 @@ function getFileTypeExtensionByType(type: string) {
 	}
 	return "";
 }
+*/
 
 export default class Project {
 	private static readonly _instances = new Array<Project>();
