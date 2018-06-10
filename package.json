@@ -1,6 +1,6 @@
 {
 	"name": "rofresh",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"description": "An automated sync plugin for Roblox Studio",
 	"main": "bin/rofresh.js",
 	"scripts": {},
@@ -9,6 +9,7 @@
 	},
 	"author": "Osyris",
 	"license": "ISC",
+	"typings": "typings",
 	"devDependencies": {
 		"@types/chokidar": "^1.7.5",
 		"@types/mz": "0.0.32",
