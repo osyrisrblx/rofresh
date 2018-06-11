@@ -45,10 +45,11 @@ export default class Project {
 	private watcher: chokidar.FSWatcher | undefined;
 	private configWatcher: chokidar.FSWatcher | undefined;
 	private config: IRofreshConfig = {};
-	public placeIds = new Array<number>();
-	public directory: string;
-	public sourceDir: string;
-	public id = uuid();
+
+	public readonly placeIds = new Set<number>();
+	public readonly directory: string;
+	public readonly sourceDir: string;
+	public readonly id = uuid();
 
 	constructor(directory: string) {
 		Project._instances.push(this);
@@ -72,7 +73,7 @@ export default class Project {
 		console.log("readConfig", configPath);
 		// reset before attempting to read
 		this.config = {};
-		this.placeIds = new Array<number>();
+		// this.placeIds.clear();
 
 		if (await fs.exists(configPath)) {
 			try {
@@ -95,7 +96,14 @@ export default class Project {
 				console.log(util.format("Invalid configuration: placeIds [ %s ]", configPath));
 				return;
 			}
-			this.placeIds = configPlaceIds;
+
+			[...this.placeIds]
+				.filter(placeId => configPlaceIds.indexOf(placeId) === -1)
+				.forEach(placeId => this.placeIds.delete(placeId));
+			configPlaceIds
+				.filter(placeId => !this.placeIds.has(placeId))
+				.forEach(placeId => this.placeIds.add(placeId));
+			console.log(this.directory, [...this.placeIds].toString());
 		}
 	}
 
@@ -166,7 +174,7 @@ export default class Project {
 		console.log("change", path.relative(this.sourceDir, filePath));
 		const change = await this.getChangeFromFile(filePath);
 		Client.instances
-			.filter(client => this.placeIds.indexOf(client.placeId) !== -1)
+			.filter(client => this.placeIds.has(client.placeId))
 			.forEach(client => client.syncChangesToStudio([change]));
 	}
 

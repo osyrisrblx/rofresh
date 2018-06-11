@@ -18,7 +18,7 @@ export default class Client {
 
 	public fullSyncToStudio() {
 		Project.instances
-			.filter(project => project.placeIds.indexOf(this.placeId) !== -1)
+			.filter(project => project.placeIds.has(this.placeId))
 			.forEach(project => project.fullSyncToStudio(this));
 	}
 
