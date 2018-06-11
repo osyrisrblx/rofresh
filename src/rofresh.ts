@@ -105,7 +105,7 @@ export function installPlugin(installDir?: string) {
 	}
 
 	// validate paths
-	if (!installPath || !fs.existsSync(pluginPath) || !fs.existsSync(installPath)) {
+	if (!installPath || !fs.existsSync(pluginPath)) {
 		return PluginInstallResult.Failure;
 	}
 
