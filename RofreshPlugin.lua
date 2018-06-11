@@ -14,6 +14,7 @@ local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game setting
 local CURL_CONNECT_ERROR = "CURL error (curl_easy_perform): Couldn't connect to server (7)"
 local CURL_TIMEOUT_ERROR = "CURL error (curl_easy_perform): Timeout was reached (28)"
 local CURL_NOTHING_ERROR = "CURL error (curl_easy_perform): Server returned nothing (no headers, no data) (52)"
+local CURL_RECEIVE_ERROR = "CURL error (curl_easy_perform): Failure when receiving data from the peer (56)"
 
 local function wrapPrinter(printer)
 	return function(...)
@@ -99,7 +100,8 @@ coroutine.wrap(function()
 				success = true
 			elseif  rawJsonOrError ~= CURL_CONNECT_ERROR
 				and rawJsonOrError ~= CURL_TIMEOUT_ERROR
-				and rawJsonOrError ~= CURL_NOTHING_ERROR then
+				and rawJsonOrError ~= CURL_NOTHING_ERROR
+				and rawJsonOrError ~= CURL_RECEIVE_ERROR then
 				warn("Connection Error", rawJsonOrError)
 			end
 		end
