@@ -186,7 +186,7 @@ export default class Project {
 
 	public start() {
 		if (!this.isRunning) {
-			console.log("watch", this.directory, this.placeIds.toString());
+			console.log("watch", this.directory, [...this.placeIds].toString());
 			this.isRunning = true;
 			this.watcher = chokidar
 				.watch(this.sourceDir, {
@@ -206,7 +206,7 @@ export default class Project {
 
 	public stop() {
 		if (this.isRunning) {
-			console.log("stop watch", this.directory, this.placeIds.toString());
+			console.log("stop watch", this.directory, [...this.placeIds].toString());
 			this.isRunning = false;
 			if (this.watcher) {
 				this.watcher.close();
