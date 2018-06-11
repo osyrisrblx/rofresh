@@ -76,12 +76,17 @@ export default class Project {
 		// this.placeIds.clear();
 
 		if (await fs.exists(configPath)) {
+			let fileContents: string | undefined;
 			try {
-				const fileContents = await fs.readFile(configPath, "utf8");
+				fileContents = await fs.readFile(configPath, "utf8");
 				this.config = JSON.parse(fileContents);
 			} catch (e) {
-				// TODO: emit error
-				console.log(util.format("Could not parse JSON [ %s ]", configPath));
+				if (fileContents && fileContents.length === 0) {
+					setTimeout(() => this.readConfig(configPath), 100);
+				} else {
+					// TODO: emit error
+					console.log(util.format("Could not parse JSON [ %s ]", configPath));
+				}
 				return;
 			}
 		} else {
