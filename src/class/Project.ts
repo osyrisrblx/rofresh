@@ -154,7 +154,7 @@ export default class Project {
 			.on("change", (filePath, stats) => this.syncChangeToStudio(filePath, stats))
 			.on("add", (filePath, stats) => this.syncChangeToStudio(filePath, stats))
 			.on("unlink", (filePath: string) => {});
-		console.log("watching", this.directory, this.placeIds);
+		console.log("start", this.directory, this.placeIds);
 	}
 
 	public stop() {
@@ -162,5 +162,6 @@ export default class Project {
 			this.watcher.close();
 			this.watcher = null;
 		}
+		console.log("stop", this.directory, this.placeIds);
 	}
 }
