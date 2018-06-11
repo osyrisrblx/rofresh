@@ -8,10 +8,12 @@ import { IChange, IRofreshConfig } from "../types";
 import Client from "./Client";
 import Language from "./Language";
 
-export const CONFIG_FILE_NAME = "rofresh.json";
-export const SOURCE_FOLDER_NAME = "src";
+const CONFIG_FILE_NAME = "rofresh.json";
+const SOURCE_FOLDER_NAME = "src";
 
-export const FILE_TYPE_EXTENSIONS: Array<[string, string]> = [
+const MAX_CONFIG_RETRY = 5;
+
+const FILE_TYPE_EXTENSIONS: Array<[string, string]> = [
 	["client", "LocalScript"],
 	["", "ModuleScript"],
 	["server", "Script"],
@@ -69,7 +71,7 @@ export default class Project {
 		this.readConfig(configPath);
 	}
 
-	private async readConfig(configPath: string) {
+	private async readConfig(configPath: string, attempt = 1) {
 		console.log("readConfig", configPath);
 		// reset before attempting to read
 		this.config = {};
@@ -81,8 +83,8 @@ export default class Project {
 				fileContents = await fs.readFile(configPath, "utf8");
 				this.config = JSON.parse(fileContents);
 			} catch (e) {
-				if (fileContents && fileContents.length === 0) {
-					setTimeout(() => this.readConfig(configPath), 100);
+				if (fileContents && fileContents.length === 0 && attempt <= MAX_CONFIG_RETRY) {
+					setTimeout(() => this.readConfig(configPath, attempt + 1), 100);
 				} else {
 					// TODO: emit error
 					console.log(util.format("Could not parse JSON [ %s ]", configPath));
