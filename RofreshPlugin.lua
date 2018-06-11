@@ -5,12 +5,14 @@ local PORT = 8888
 local URL_TEMPLATE = "http://localhost:%d"
 local SERVER_URL = string.format(URL_TEMPLATE, PORT)
 local CLIENT_ID = HttpService:GenerateGUID(false)
+local HEADERS = { id = CLIENT_ID }
 local OUTPUT_PREFIX = "[Rofresh]"
 
 -- errors
 local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game settings"
 local CURL_CONNECT_ERROR = "CURL error (curl_easy_perform): Couldn't connect to server (7)"
 local CURL_TIMEOUT_ERROR = "CURL error (curl_easy_perform): Timeout was reached (28)"
+local CURL_NOTHING_ERROR = "CURL error (curl_easy_perform): Server returned nothing (no headers, no data) (52)"
 
 local function wrapPrinter(printer)
 	return function(...)
@@ -47,26 +49,11 @@ local function getScriptObject(path, className)
 	return scriptObject
 end
 
-local queue = {}
-local headers = { id = CLIENT_ID }
-
 coroutine.wrap(function()
 	while wait() do
-		local data = table.remove(queue, 1)
 		local success, rawJsonOrError = pcall(function()
-			return HttpService:PostAsync(
-				SERVER_URL,
-				HttpService:JSONEncode(data),
-				Enum.HttpContentType.ApplicationJson,
-				false,
-				headers
-			)
+			return HttpService:GetAsync(SERVER_URL, true, HEADERS)
 		end)
-
-		-- something went wrong, requeue
-		if not success then
-			table.insert(queue, data)
-		end
 
 		if success then
 			local payloadOrError
@@ -86,7 +73,7 @@ coroutine.wrap(function()
 					warn("Server Error", payloadOrError.error)
 				end
 			else
-				warn(payloadOrError)
+				warn("JSON Error", payloadOrError)
 			end
 		else
 			if rawJsonOrError == HTTP_NOT_ENABLED then
@@ -97,8 +84,10 @@ coroutine.wrap(function()
 				end
 				-- bypass throttle
 				success = true
-			elseif rawJsonOrError ~= CURL_CONNECT_ERROR and rawJsonOrError ~= CURL_TIMEOUT_ERROR then
-				warn(rawJsonOrError)
+			elseif  rawJsonOrError ~= CURL_CONNECT_ERROR
+				and rawJsonOrError ~= CURL_TIMEOUT_ERROR
+				and rawJsonOrError ~= CURL_NOTHING_ERROR then
+				warn("Connection Error", rawJsonOrError)
 			end
 		end
 
@@ -130,16 +119,19 @@ end
 local function syncSelection()
 	local changes = {}
 	for _, selected in pairs(Selection:Get()) do
+		print("syncSelection", selected:GetFullName())
 		for _, descendant in pairs(selected:GetDescendants()) do
 			if descendant:IsA("LuaSourceContainer") then
 				table.insert(changes, getChangeFromScript(descendant))
 			end
 		end
 	end
-	table.insert(queue, {
+	--[[
+	HttpService:PostAsync(SERVER_URL, HttpService:JSONEncode({
 		projectId = "",
 		changes = changes,
-	})
+	}), Enum.HttpContentType.ApplicationJson, false, HEADERS)
+	]]
 end
 
 local button = plugin:CreateToolbar("Rofresh"):CreateButton("Sync Selection", "", "")

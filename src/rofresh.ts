@@ -27,31 +27,38 @@ function onRequest(request: http.IncomingMessage, response: http.ServerResponse)
 		if (placeIdStr && typeof placeIdStr === "string") {
 			const placeId = parseInt(placeIdStr, 10);
 			if (placeId) {
-				let client = Client.instances.filter(c => c.id === clientId)[0];
+				let client = Client.instances.filter(value => value.id === clientId)[0];
 				if (client) {
-					client.placeId = placeId;
+					if (client.placeId !== placeId) {
+						client.placeId = placeId;
+						client.fullSyncToStudio();
+					}
 				} else {
 					client = new Client(clientId, placeId);
 				}
 				if (client) {
-					client.setResponse(response);
-					let data = "";
-					request
-						.on("close", () => client.disconnect(response))
-						.on("data", chunk => (data += chunk.toString()))
-						.on("end", () => {
-							let clientBody: IClientBody | undefined;
-							try {
-								clientBody = JSON.parse(data);
-							} catch (e) {}
-							if (clientBody) {
-								const changes = clientBody.changes;
-								const projectId = clientBody.projectId;
-								if (changes && changes.length > 0 && projectId) {
-									client.syncChangesFromStudio(projectId, changes);
+					if (request.method === "GET") {
+						client.setResponse(response);
+					} else if (request.method === "POST") {
+						// TODO
+						let data = "";
+						request
+							.on("close", () => client.disconnect(response))
+							.on("data", chunk => (data += chunk.toString()))
+							.on("end", () => {
+								let clientBody: IClientBody | undefined;
+								try {
+									clientBody = JSON.parse(data);
+								} catch (e) {}
+								if (clientBody) {
+									const changes = clientBody.changes;
+									const projectId = clientBody.projectId;
+									if (changes && changes.length > 0 && projectId) {
+										client.syncChangesFromStudio(projectId, changes);
+									}
 								}
-							}
-						});
+							});
+					}
 				} else {
 					writeError(response, "Client placeId mismatch!");
 				}

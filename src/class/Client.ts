@@ -13,6 +13,10 @@ export default class Client {
 
 	constructor(public id: string, public placeId: number) {
 		Client._instances.push(this);
+		this.fullSyncToStudio();
+	}
+
+	public fullSyncToStudio() {
 		Project.instances
 			.filter(project => project.placeIds.indexOf(this.placeId) !== -1)
 			.forEach(project => project.fullSyncToStudio(this));
