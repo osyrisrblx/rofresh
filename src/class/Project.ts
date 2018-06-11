@@ -83,7 +83,7 @@ export default class Project {
 				fileContents = await fs.readFile(configPath, "utf8");
 				this.config = JSON.parse(fileContents);
 			} catch (e) {
-				if (fileContents && fileContents.length === 0 && attempt <= MAX_CONFIG_RETRY) {
+				if (fileContents !== undefined && fileContents.length === 0 && attempt <= MAX_CONFIG_RETRY) {
 					setTimeout(() => this.readConfig(configPath, attempt + 1), 100);
 				} else {
 					// TODO: emit error
@@ -97,7 +97,7 @@ export default class Project {
 		}
 
 		const configPlaceIds = this.config.placeIds;
-		if (configPlaceIds) {
+		if (configPlaceIds !== undefined) {
 			if (!configPlaceIds.reduce((accum, value) => accum && typeof value === "number" && value > 0, true)) {
 				// TODO: emit error
 				console.log(util.format("Invalid configuration: placeIds [ %s ]", configPath));
