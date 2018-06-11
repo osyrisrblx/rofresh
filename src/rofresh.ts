@@ -8,6 +8,17 @@ import { IClientBody } from "./types";
 import { isProcessRunningSync, writeError } from "./utility";
 
 const PORT = 8888;
+const PLUGIN_FILE_NAME = "RofreshPlugin.lua";
+const ROBLOX_STUDIO_PROCESS_NAME = "RobloxStudioBeta";
+
+let server: http.Server | undefined;
+let isRunning = false;
+
+export enum PluginInstallResult {
+	Success,
+	Failure,
+	PromptRestartStudio,
+}
 
 function onRequest(request: http.IncomingMessage, response: http.ServerResponse) {
 	const clientId = request.headers.id;
@@ -55,14 +66,6 @@ function onRequest(request: http.IncomingMessage, response: http.ServerResponse)
 	}
 }
 
-export enum PluginInstallResult {
-	Success,
-	Failure,
-	PromptRestartStudio,
-}
-
-const PLUGIN_FILE_NAME = "RofreshPlugin.lua";
-
 function getPluginInstallPathWin32() {
 	const appData = process.env.LOCALAPPDATA;
 	if (appData) {
@@ -80,8 +83,6 @@ function getPluginInstallPathWin32() {
 function getPluginInstallPathDarwin() {
 	return undefined;
 }
-
-const ROBLOX_STUDIO_PROCESS_NAME = "RobloxStudioBeta";
 
 /**
  * attemps to automatically install the Rofresh Roblox Studio plugin
@@ -122,7 +123,10 @@ export function installPlugin(installDir?: string) {
  * adds a project directory to rofresh
  */
 export function addProject(dir: string) {
-	new Project(dir);
+	const project = new Project(dir);
+	if (isRunning) {
+		project.start();
+	}
 }
 
 /**
@@ -130,7 +134,7 @@ export function addProject(dir: string) {
  */
 export function addProjectIfNone(dir: string) {
 	if (Project.instances.length === 0) {
-		new Project(dir);
+		addProject(dir);
 	}
 }
 
@@ -141,9 +145,6 @@ export function removeProject(dir: string) {
 	dir = path.resolve(dir);
 	Project.instances.filter(project => project.directory === dir).forEach(project => Project.remove(project));
 }
-
-let server: http.Server | undefined;
-let isRunning = false;
 
 /**
  * stops rofresh
