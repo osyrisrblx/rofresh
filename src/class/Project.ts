@@ -59,24 +59,25 @@ export default class Project {
 		}
 		let config: IRofreshConfig = {};
 		const configPath = path.join(this.directory, CONFIG_FILE_NAME);
-		this.readConfig(configPath);
 		this.configWatcher = chokidar
 			.watch(configPath, {
 				ignoreInitial: true,
 			})
 			.on("change", (filePath, stats) => this.readConfig(configPath))
 			.on("unlink", (filePath: string) => this.remove());
+		this.readConfig(configPath);
 	}
 
-	private readConfig(configPath: string) {
+	private async readConfig(configPath: string) {
 		console.log("readConfig", configPath);
 		// reset before attempting to read
 		this.config = {};
 		this.placeIds = new Array<number>();
 
-		if (fs.existsSync(configPath)) {
+		if (await fs.exists(configPath)) {
 			try {
-				this.config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+				const fileContents = await fs.readFile(configPath, "utf8");
+				this.config = JSON.parse(fileContents);
 			} catch (e) {
 				// TODO: emit error
 				console.log(util.format("Could not parse JSON [ %s ]", configPath));
@@ -95,23 +96,6 @@ export default class Project {
 				return;
 			}
 			this.placeIds = configPlaceIds;
-		}
-	}
-
-	public remove() {
-		const index = Project._instances.indexOf(this);
-		if (index > -1) {
-			Project._instances.splice(index, 1);
-		}
-
-		// cleanup
-		if (this.watcher) {
-			this.watcher.close();
-			this.watcher = undefined;
-		}
-		if (this.configWatcher) {
-			this.configWatcher.close();
-			this.configWatcher = undefined;
 		}
 	}
 
@@ -155,6 +139,23 @@ export default class Project {
 			}
 		}
 		return changes;
+	}
+
+	public remove() {
+		const index = Project._instances.indexOf(this);
+		if (index > -1) {
+			Project._instances.splice(index, 1);
+		}
+
+		// cleanup
+		if (this.watcher) {
+			this.watcher.close();
+			this.watcher = undefined;
+		}
+		if (this.configWatcher) {
+			this.configWatcher.close();
+			this.configWatcher = undefined;
+		}
 	}
 
 	public async fullSyncToStudio(client: Client) {
