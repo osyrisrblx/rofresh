@@ -24,6 +24,13 @@ export default class Language {
 			.reduce((result, ext, index) => result + (index !== 0 ? "$|" : "") + ".*\\" + ext, "");
 		Language.ignoreRegExp = new RegExp("^(.(?!" + middle + "))*$");
 	}
+
+	public remove() {
+		const index = Language._instances.indexOf(this);
+		if (index > -1) {
+			Language._instances.splice(index, 1);
+		}
+	}
 }
 
 new Language("Lua", ".lua");

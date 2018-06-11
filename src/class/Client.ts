@@ -18,6 +18,13 @@ export default class Client {
 			.forEach(project => project.fullSyncToStudio(this));
 	}
 
+	public remove() {
+		const index = Client._instances.indexOf(this);
+		if (index > -1) {
+			Client._instances.splice(index, 1);
+		}
+	}
+
 	public writeResponse() {
 		if (this.response && this.changeQueue.size !== 0) {
 			const changes = new Array<IChange>();
@@ -52,13 +59,6 @@ export default class Client {
 		Project.instances
 			.filter(project => project.id === projectId)
 			.forEach(project => project.syncChangesFromStudio(changes));
-	}
-
-	public remove() {
-		const index = Client._instances.indexOf(this);
-		if (index > -1) {
-			Client._instances.splice(index, 1);
-		}
 	}
 
 	public disconnect(res?: http.ServerResponse) {

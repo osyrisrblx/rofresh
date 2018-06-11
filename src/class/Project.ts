@@ -41,13 +41,7 @@ export default class Project {
 	private static readonly _instances = new Array<Project>();
 	public static readonly instances: ReadonlyArray<Project> = Project._instances;
 
-	public static remove(project: Project) {
-		const index = this.instances.indexOf(project);
-		if (index > -1) {
-			this._instances.splice(index, 1);
-		}
-	}
-
+	private isRunning = false;
 	private watcher: chokidar.FSWatcher | null = null;
 	public placeIds = new Array<number>();
 	public directory: string;
@@ -77,6 +71,13 @@ export default class Project {
 					throw new Error(util.format("Bad placeId in %s! [%s]", CONFIG_FILE_NAME, value));
 				}
 			});
+		}
+	}
+
+	public remove() {
+		const index = Project._instances.indexOf(this);
+		if (index > -1) {
+			Project._instances.splice(index, 1);
 		}
 	}
 
@@ -141,27 +142,33 @@ export default class Project {
 	}
 
 	public start() {
-		this.watcher = chokidar
-			.watch(this.sourceDir, {
-				ignoreInitial: true,
-				ignored: (filePath: string, stat?: fs.Stats) =>
-					stat &&
-					!stat.isDirectory() &&
-					!Language.instances
-						.map(lang => lang.ext)
-						.reduce((accum, ext) => accum || filePath.endsWith(ext), false),
-			})
-			.on("change", (filePath, stats) => this.syncChangeToStudio(filePath, stats))
-			.on("add", (filePath, stats) => this.syncChangeToStudio(filePath, stats))
-			.on("unlink", (filePath: string) => {});
-		console.log("start", this.directory, this.placeIds);
+		if (!this.isRunning) {
+			console.log("start", this.directory, this.placeIds);
+			this.isRunning = true;
+			this.watcher = chokidar
+				.watch(this.sourceDir, {
+					ignoreInitial: true,
+					ignored: (filePath: string, stat?: fs.Stats) =>
+						stat &&
+						!stat.isDirectory() &&
+						!Language.instances
+							.map(lang => lang.ext)
+							.reduce((accum, ext) => accum || filePath.endsWith(ext), false),
+				})
+				.on("change", (filePath, stats) => this.syncChangeToStudio(filePath, stats))
+				.on("add", (filePath, stats) => this.syncChangeToStudio(filePath, stats))
+				.on("unlink", (filePath: string) => {});
+		}
 	}
 
 	public stop() {
-		if (this.watcher) {
-			this.watcher.close();
-			this.watcher = null;
+		if (this.isRunning) {
+			console.log("stop", this.directory, this.placeIds);
+			this.isRunning = false;
+			if (this.watcher) {
+				this.watcher.close();
+				this.watcher = null;
+			}
 		}
-		console.log("stop", this.directory, this.placeIds);
 	}
 }

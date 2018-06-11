@@ -51,6 +51,6 @@ if (commander.install) {
 		console.log("Please restart Roblox Studio.");
 	}
 } else {
-	rofresh.addProjectIfNone(DEFAULT_PROJECT_DIR);
+	rofresh.addProject(DEFAULT_PROJECT_DIR, true);
 	rofresh.start();
 }

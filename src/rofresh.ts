@@ -122,19 +122,12 @@ export function installPlugin(installDir?: string) {
 /**
  * adds a project directory to rofresh
  */
-export function addProject(dir: string) {
-	const project = new Project(dir);
-	if (isRunning) {
-		project.start();
-	}
-}
-
-/**
- * adds a project directory to rofresh if none currently exist
- */
-export function addProjectIfNone(dir: string) {
-	if (Project.instances.length === 0) {
-		addProject(dir);
+export function addProject(dir: string, onlyIfNone = false) {
+	if (!onlyIfNone || Project.instances.length === 0) {
+		const project = new Project(dir);
+		if (isRunning) {
+			project.start();
+		}
 	}
 }
 
@@ -143,35 +136,39 @@ export function addProjectIfNone(dir: string) {
  */
 export function removeProject(dir: string) {
 	dir = path.resolve(dir);
-	Project.instances.filter(project => project.directory === dir).forEach(project => Project.remove(project));
+	Project.instances.filter(project => project.directory === dir).forEach(project => {
+		project.stop();
+		project.remove();
+	});
 }
 
 /**
  * stops rofresh
  */
 export function stop() {
-	console.log("stop");
-	Project.instances.forEach(project => project.stop());
-	Client.instances.forEach(client => {
-		client.disconnect();
-		client.remove();
-	});
-	if (server) {
-		server.close();
-		server = undefined;
+	if (isRunning) {
+		console.log("stop");
+		isRunning = false;
+		Project.instances.forEach(project => project.stop());
+		Client.instances.forEach(client => {
+			client.disconnect();
+			client.remove();
+		});
+		if (server) {
+			server.close();
+			server = undefined;
+		}
 	}
-	isRunning = false;
 }
 
 /**
  * starts rofresh
  */
 export function start() {
-	console.log("start");
-	if (isRunning) {
-		stop();
+	if (!isRunning) {
+		console.log("start");
+		isRunning = true;
+		server = http.createServer(onRequest).listen(PORT);
+		Project.instances.forEach(project => project.start());
 	}
-	server = http.createServer(onRequest).listen(PORT);
-	Project.instances.forEach(project => project.start());
-	isRunning = true;
 }
