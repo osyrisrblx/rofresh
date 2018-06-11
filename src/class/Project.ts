@@ -53,12 +53,12 @@ export default class Project {
 	constructor(directory: string) {
 		Project._instances.push(this);
 		this.directory = path.resolve(directory);
-		this.sourceDir = this.directory + "/" + SOURCE_FOLDER_NAME;
+		this.sourceDir = path.join(this.directory, SOURCE_FOLDER_NAME);
 		if (!fs.existsSync(this.directory)) {
 			throw new Error(util.format("Could not find project directory! [ %s ]", this.directory));
 		}
 		let config: IRofreshConfig = {};
-		const configPath = util.format("%s/%s", this.directory, CONFIG_FILE_NAME);
+		const configPath = path.join(this.directory, CONFIG_FILE_NAME);
 		this.readConfig(configPath);
 		this.configWatcher = chokidar
 			.watch(configPath, {
