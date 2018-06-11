@@ -7,6 +7,7 @@ local SERVER_URL = string.format(URL_TEMPLATE, PORT)
 local CLIENT_ID = HttpService:GenerateGUID(false)
 local HEADERS = { id = CLIENT_ID }
 local OUTPUT_PREFIX = "[Rofresh]"
+local DEBUG = false
 
 -- errors
 local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game settings"
@@ -21,6 +22,18 @@ local function wrapPrinter(printer)
 end
 local print = wrapPrinter(print)
 local warn = wrapPrinter(warn)
+
+local function debugPrint(...)
+	if DEBUG then
+		print(...)
+	end
+end
+
+_G.rofresh = {}
+function _G.rofresh.debug()
+	DEBUG = not DEBUG
+	debugPrint("debug", DEBUG)
+end
 
 local function findFirstChildOfNameAndClass(parent, name, className)
 	for _, child in pairs(parent:GetChildren()) do
@@ -65,7 +78,7 @@ coroutine.wrap(function()
 					for _, change in pairs(payloadOrError) do
 						local scriptObject = getScriptObject(change.path, change.type)
 						if scriptObject then
-							print("Write", scriptObject:GetFullName())
+							debugPrint("Write", scriptObject:GetFullName())
 							scriptObject.Source = change.source
 						end
 					end
@@ -119,7 +132,7 @@ end
 local function syncSelection()
 	local changes = {}
 	for _, selected in pairs(Selection:Get()) do
-		print("syncSelection", selected:GetFullName())
+		debugPrint("syncSelection", selected:GetFullName())
 		for _, descendant in pairs(selected:GetDescendants()) do
 			if descendant:IsA("LuaSourceContainer") then
 				table.insert(changes, getChangeFromScript(descendant))
