@@ -17,14 +17,7 @@ export const FILE_TYPE_EXTENSIONS: Array<[string, string]> = [
 	["server", "Script"],
 ];
 
-const PLATFORM_FILE_INDEX_SYMBOLS: { readonly [index: string]: string } = {
-	darwin: "/",
-	linux: "/",
-	win32: "\\",
-};
-const FILE_INDEX_SYMBOL = PLATFORM_FILE_INDEX_SYMBOLS[process.platform];
-
-function getFileTypeExtensionByExtension(ext: string) {
+function getFileTypeByExtension(ext: string) {
 	for (const pair of FILE_TYPE_EXTENSIONS) {
 		if (pair[0] === ext) {
 			return pair[1];
@@ -34,7 +27,7 @@ function getFileTypeExtensionByExtension(ext: string) {
 }
 
 /*
-function getFileTypeExtensionByType(type: string) {
+function getFileExtensionByType(type: string) {
 	for (const pair of FILE_TYPE_EXTENSIONS) {
 		if (pair[1] === type) {
 			return pair[0];
@@ -48,27 +41,11 @@ export default class Project {
 	private static readonly _instances = new Array<Project>();
 	public static readonly instances: ReadonlyArray<Project> = Project._instances;
 
-	public static add(directory: string) {
-		this._instances.push(new Project(directory));
-	}
-
-	public static remove(directory: string) {
-		directory = path.resolve(directory);
-		let index = -1;
-		for (let i = 0; i < this._instances.length; i++) {
-			if (this._instances[i].directory === directory) {
-				index = i;
-			}
-		}
+	public static remove(project: Project) {
+		const index = this.instances.indexOf(project);
 		if (index > -1) {
 			this._instances.splice(index, 1);
 		}
-	}
-
-	public static async fullSyncToStudio(client: Client) {
-		this.instances
-			.filter(project => project.placeIds.indexOf(client.placeId) !== -1)
-			.forEach(project => project.fullSyncToStudio(client));
 	}
 
 	private watcher: chokidar.FSWatcher | null = null;
@@ -78,6 +55,7 @@ export default class Project {
 	public id = uuid();
 
 	constructor(directory: string) {
+		Project._instances.push(this);
 		this.directory = path.resolve(directory);
 		this.sourceDir = this.directory + "/" + SOURCE_FOLDER_NAME;
 		if (!fs.existsSync(this.directory)) {
@@ -103,18 +81,31 @@ export default class Project {
 	}
 
 	private async getChangeFromFile(filePath: string) {
-		const fullName = path.basename(filePath, path.extname(filePath));
+		const ext = path.extname(filePath);
+		const fullName = path.basename(filePath, ext);
 		const fileTypeExt = path
 			.extname(fullName)
 			.replace(/^\.+/, "")
 			.toLowerCase();
-		const changePath = path.relative(this.sourceDir, filePath).split(FILE_INDEX_SYMBOL);
+		const changePath = path.relative(this.sourceDir, filePath).split(path.sep);
 		changePath.pop();
 		changePath.push(path.basename(fullName, "." + fileTypeExt));
+
+		let changeSource: string | undefined;
+		for (const lang of Language.instances) {
+			if (ext === lang.ext) {
+				changeSource = (await lang.getSource(filePath)).toString();
+			}
+		}
+
+		if (!changeSource) {
+			throw new Error("Could not find applicable Language for filePath! [ " + filePath + " ]");
+		}
+
 		const change: IChange = {
 			path: changePath,
-			source: (await Language.getSourceByFilePath(filePath)).toString(),
-			type: getFileTypeExtensionByExtension(fileTypeExt),
+			source: changeSource,
+			type: getFileTypeByExtension(fileTypeExt),
 		};
 		return change;
 	}

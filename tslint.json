@@ -20,6 +20,7 @@
 		"no-empty": false,
 		"no-bitwise": false,
 		"variable-name": false,
-		"max-classes-per-file": false
+		"max-classes-per-file": false,
+		"no-unused-expression": false,
 	}
 }

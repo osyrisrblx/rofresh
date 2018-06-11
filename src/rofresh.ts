@@ -1,9 +1,11 @@
 import http = require("http");
+import fs = require("mz/fs");
+import path = require("path");
 
 import Client from "./class/Client";
 import Project from "./class/Project";
 import { IClientBody } from "./types";
-import { writeError } from "./utility";
+import { isProcessRunningSync, writeError } from "./utility";
 
 const PORT = 8888;
 
@@ -14,7 +16,12 @@ function onRequest(request: http.IncomingMessage, response: http.ServerResponse)
 		if (placeIdStr && typeof placeIdStr === "string") {
 			const placeId = parseInt(placeIdStr, 10);
 			if (placeId) {
-				const client = Client.get(clientId, placeId);
+				let client = Client.instances.filter(c => c.id === clientId)[0];
+				if (client) {
+					client.placeId = placeId;
+				} else {
+					client = new Client(clientId, placeId);
+				}
 				if (client) {
 					client.setResponse(response);
 					let data = "";
@@ -46,6 +53,93 @@ function onRequest(request: http.IncomingMessage, response: http.ServerResponse)
 	} else {
 		writeError(response, "Bad clientId!");
 	}
+}
+
+export enum PluginInstallResult {
+	Success,
+	Failure,
+	PromptRestartStudio,
+}
+
+const PLUGIN_FILE_NAME = "RofreshPlugin.lua";
+
+function getPluginInstallPathWin32() {
+	const appData = process.env.LOCALAPPDATA;
+	if (appData) {
+		const robloxFolder = path.join(appData, "Roblox");
+		if (fs.existsSync(robloxFolder)) {
+			const pluginsFolder = path.join(robloxFolder, "Plugins");
+			if (!fs.existsSync(pluginsFolder)) {
+				fs.mkdirSync(pluginsFolder);
+			}
+			return path.join(pluginsFolder, PLUGIN_FILE_NAME);
+		}
+	}
+}
+
+function getPluginInstallPathDarwin() {
+	return undefined;
+}
+
+const ROBLOX_STUDIO_PROCESS_NAME = "RobloxStudioBeta";
+
+/**
+ * attemps to automatically install the Rofresh Roblox Studio plugin
+ */
+export function installPlugin(installDir?: string) {
+	const pluginPath = path.join(__dirname, "..", PLUGIN_FILE_NAME);
+	let installPath: string | undefined;
+	if (installDir) {
+		installPath = path.join(installDir, "Plugins", PLUGIN_FILE_NAME);
+	} else {
+		if (process.platform === "win32") {
+			installPath = getPluginInstallPathWin32();
+		} else if (process.platform === "darwin") {
+			installPath = getPluginInstallPathDarwin();
+			// TODO
+			return PluginInstallResult.Failure;
+		} else {
+			return PluginInstallResult.Failure;
+		}
+	}
+
+	// validate paths
+	if (!installPath || !fs.existsSync(pluginPath) || !fs.existsSync(installPath)) {
+		return PluginInstallResult.Failure;
+	}
+
+	// copy
+	fs.writeFileSync(installPath, fs.readFileSync(pluginPath));
+
+	if (isProcessRunningSync(ROBLOX_STUDIO_PROCESS_NAME)) {
+		return PluginInstallResult.PromptRestartStudio;
+	} else {
+		return PluginInstallResult.Success;
+	}
+}
+
+/**
+ * adds a project directory to rofresh
+ */
+export function addProject(dir: string) {
+	new Project(dir);
+}
+
+/**
+ * adds a project directory to rofresh if none currently exist
+ */
+export function addProjectIfNone(dir: string) {
+	if (Project.instances.length === 0) {
+		new Project(dir);
+	}
+}
+
+/**
+ * removes a project directory from rofresh
+ */
+export function removeProject(dir: string) {
+	dir = path.resolve(dir);
+	Project.instances.filter(project => project.directory === dir).forEach(project => Project.remove(project));
 }
 
 let server: http.Server | undefined;

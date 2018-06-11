@@ -8,30 +8,14 @@ export default class Client {
 	private static readonly _instances = new Array<Client>();
 	public static readonly instances: ReadonlyArray<Client> = Client._instances;
 
-	private static getById(clientId: string) {
-		for (const client of Client.instances) {
-			if (client.id === clientId) {
-				return client;
-			}
-		}
-	}
-
-	public static get(id: string, placeId: number) {
-		let client = Client.getById(id);
-		if (client) {
-			client.placeId = placeId;
-		} else {
-			client = new Client(id, placeId);
-			Client._instances.push(client);
-		}
-		return client;
-	}
-
 	private changeQueue = new Map<string, IChange>();
 	private response?: http.ServerResponse;
 
 	constructor(public id: string, public placeId: number) {
-		Project.fullSyncToStudio(this);
+		Client._instances.push(this);
+		Project.instances
+			.filter(project => project.placeIds.indexOf(this.placeId) !== -1)
+			.forEach(project => project.fullSyncToStudio(this));
 	}
 
 	public writeResponse() {

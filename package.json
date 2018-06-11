@@ -1,8 +1,9 @@
 {
 	"name": "rofresh",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"description": "An automated sync plugin for Roblox Studio",
 	"main": "bin/rofresh.js",
+	"typings": "typings/rofresh.d.ts",
 	"scripts": {
 		"lint": "./node_modules/.bin/tslint --project ./tsconfig.json"
 	},
@@ -11,7 +12,6 @@
 	},
 	"author": "Osyris",
 	"license": "ISC",
-	"typings": "typings/rofresh.d.ts",
 	"devDependencies": {
 		"@types/chokidar": "^1.7.5",
 		"@types/mz": "0.0.32",
