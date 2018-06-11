@@ -12,7 +12,7 @@ const PLUGIN_FILE_NAME = "RofreshPlugin.lua";
 const ROBLOX_STUDIO_PROCESS_NAME = "RobloxStudioBeta";
 
 let server: http.Server | undefined;
-let isRunning = false;
+let running = false;
 
 export enum PluginInstallResult {
 	Success,
@@ -92,7 +92,14 @@ function getPluginInstallPathDarwin() {
 }
 
 /**
- * attemps to automatically install the Rofresh Roblox Studio plugin
+ * is rofresh currently running
+ */
+export function isRunning() {
+	return running;
+}
+
+/**
+ * attempts to automatically install the Rofresh Roblox Studio plugin
  */
 export function installPlugin(installDir?: string) {
 	const pluginPath = path.join(__dirname, "..", PLUGIN_FILE_NAME);
@@ -131,9 +138,11 @@ export function installPlugin(installDir?: string) {
  */
 export function addProject(dir: string, onlyIfNone = false) {
 	if (!onlyIfNone || Project.instances.length === 0) {
-		const project = new Project(dir);
-		if (isRunning) {
-			project.start();
+		if (!Project.instances.reduce((accum, value) => accum || value.directory === dir, false)) {
+			const project = new Project(dir);
+			if (running) {
+				project.start();
+			}
 		}
 	}
 }
@@ -153,9 +162,9 @@ export function removeProject(dir: string) {
  * stops rofresh
  */
 export function stop() {
-	if (isRunning) {
+	if (running) {
 		console.log("stop");
-		isRunning = false;
+		running = false;
 		Project.instances.forEach(project => project.stop());
 		Client.instances.forEach(client => {
 			client.disconnect();
@@ -172,9 +181,9 @@ export function stop() {
  * starts rofresh
  */
 export function start() {
-	if (!isRunning) {
+	if (!running) {
 		console.log("start");
-		isRunning = true;
+		running = true;
 		server = http.createServer(onRequest).listen(PORT);
 		Project.instances.forEach(project => project.start());
 	}
