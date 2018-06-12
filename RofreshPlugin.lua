@@ -66,7 +66,10 @@ end
 coroutine.wrap(function()
 	while wait() do
 		if game.PlaceId == 0 then
-			game:GetPropertyChangedSignal("PlaceId"):Wait()
+			warn("game.PlaceId cannot be 0")
+			while game.PlaceId == 0 do
+				game:GetPropertyChangedSignal("PlaceId"):Wait()
+			end
 		end
 
 		local success, rawJsonOrError = pcall(function()
