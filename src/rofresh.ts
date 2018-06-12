@@ -27,7 +27,7 @@ function onRequest(request: http.IncomingMessage, response: http.ServerResponse)
 	if (clientId && typeof clientId === "string") {
 		if (placeIdStr && typeof placeIdStr === "string") {
 			const placeId = parseInt(placeIdStr, 10);
-			if (placeId) {
+			if (!isNaN(placeId)) {
 				let client = Client.instances.filter(value => value.id === clientId)[0];
 				if (client) {
 					if (client.placeId !== placeId) {
@@ -36,6 +36,9 @@ function onRequest(request: http.IncomingMessage, response: http.ServerResponse)
 					}
 				} else {
 					client = new Client(clientId, placeId);
+					if (client.placeId === 0) {
+						writeError(response, "placeId must not be 0");
+					}
 				}
 				if (client) {
 					if (request.method === "GET") {
