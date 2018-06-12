@@ -18,7 +18,7 @@ export enum PluginInstallResult {
 	Success,
 	Failure,
 	PromptRestartStudio,
-	AlreadyInstalled, // TODO check version
+	AlreadyInstalled, // TODO: check version
 }
 
 function onRequest(request: http.IncomingMessage, response: http.ServerResponse) {

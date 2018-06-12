@@ -4,7 +4,7 @@ import path = require("path");
 import util = require("util");
 import uuid = require("uuid/v4");
 
-import { IChange, IRofreshConfig } from "../types";
+import { IChange, IChangeBase, IRofreshConfig } from "../types";
 import Client from "./Client";
 import Language from "./Language";
 
@@ -25,7 +25,7 @@ function getFileTypeByExtension(ext: string) {
 			return pair[1];
 		}
 	}
-	return "";
+	return null;
 }
 
 /*
@@ -60,7 +60,6 @@ export default class Project {
 		if (!fs.existsSync(this.directory)) {
 			throw new Error(util.format("Could not find project directory! [ %s ]", this.directory));
 		}
-		let config: IRofreshConfig = {};
 		const configPath = path.join(this.directory, CONFIG_FILE_NAME);
 		this.configWatcher = chokidar
 			.watch(configPath, {
@@ -71,11 +70,27 @@ export default class Project {
 		this.readConfig(configPath);
 	}
 
+	public remove() {
+		const index = Project._instances.indexOf(this);
+		if (index > -1) {
+			Project._instances.splice(index, 1);
+		}
+
+		// cleanup
+		if (this.watcher) {
+			this.watcher.close();
+			this.watcher = undefined;
+		}
+		if (this.configWatcher) {
+			this.configWatcher.close();
+			this.configWatcher = undefined;
+		}
+	}
+
 	private async readConfig(configPath: string, attempt = 1) {
 		console.log("readConfig", configPath);
 		// reset before attempting to read
 		this.config = {};
-		// this.placeIds.clear();
 
 		if (await fs.exists(configPath)) {
 			let fileContents: string | undefined;
@@ -92,6 +107,7 @@ export default class Project {
 				return;
 			}
 		} else {
+			// no config, no project
 			this.remove();
 			return;
 		}
@@ -114,16 +130,43 @@ export default class Project {
 		}
 	}
 
-	private async getChangeFromFile(filePath: string) {
-		const ext = path.extname(filePath);
-		const fullName = path.basename(filePath, ext);
+	private async getChangeBaseFromFile(filePath: string): Promise<IChangeBase> {
+		const fullName = path.basename(filePath, path.extname(filePath));
 		const fileTypeExt = path
 			.extname(fullName)
 			.replace(/^\.+/, "")
 			.toLowerCase();
+
 		const changePath = path.relative(this.sourceDir, filePath).split(path.sep);
 		changePath.pop();
 		changePath.push(path.basename(fullName, "." + fileTypeExt));
+
+		const changeType = getFileTypeByExtension(fileTypeExt);
+		if (!changeType) {
+			throw new Error("Could not determine file type! [ " + filePath + " ]");
+		}
+
+		const changeBase: IChangeBase = {
+			path: changePath,
+			type: changeType,
+		};
+
+		return changeBase;
+	}
+
+	private async getRemoveFromFile(filePath: string): Promise<IChange> {
+		const changeBase = await this.getChangeBaseFromFile(filePath);
+		return {
+			path: changeBase.path,
+			source: null,
+			type: changeBase.type,
+		};
+	}
+
+	private async getChangeFromFile(filePath: string): Promise<IChange> {
+		const changeBase = await this.getChangeBaseFromFile(filePath);
+
+		const ext = path.extname(filePath);
 
 		let changeSource: string | undefined;
 		for (const lang of Language.instances) {
@@ -136,12 +179,11 @@ export default class Project {
 			throw new Error("Could not find applicable Language for filePath! [ " + filePath + " ]");
 		}
 
-		const change: IChange = {
-			path: changePath,
+		return {
+			path: changeBase.path,
 			source: changeSource,
-			type: getFileTypeByExtension(fileTypeExt),
+			type: changeBase.type,
 		};
-		return change;
 	}
 
 	private async getChangesFromDir(dir = this.directory, changes: Array<IChange> = new Array<IChange>()) {
@@ -156,36 +198,31 @@ export default class Project {
 		return changes;
 	}
 
-	public remove() {
-		const index = Project._instances.indexOf(this);
-		if (index > -1) {
-			Project._instances.splice(index, 1);
-		}
-
-		// cleanup
-		if (this.watcher) {
-			this.watcher.close();
-			this.watcher = undefined;
-		}
-		if (this.configWatcher) {
-			this.configWatcher.close();
-			this.configWatcher = undefined;
-		}
-	}
-
 	public async fullSyncToStudio(client: Client) {
 		client.syncChangesToStudio(await this.getChangesFromDir());
 	}
 
-	public async syncChangeToStudio(filePath: string, stats: fs.Stats) {
-		console.log("change", path.relative(this.sourceDir, filePath));
-		const change = await this.getChangeFromFile(filePath);
+	private async distributeChangeToStudio(change: IChange) {
 		Client.instances
 			.filter(client => this.placeIds.has(client.placeId))
 			.forEach(client => client.syncChangesToStudio([change]));
 	}
 
-	public async syncChangeFromStudio(change: IChange) {}
+	public async syncChangeToStudio(filePath: string) {
+		console.log("change", path.relative(this.sourceDir, filePath));
+		this.distributeChangeToStudio(await this.getChangeFromFile(filePath));
+	}
+
+	public async syncRemoveToStudio(filePath: string) {
+		console.log("remove", path.relative(this.sourceDir, filePath));
+		this.distributeChangeToStudio(await this.getRemoveFromFile(filePath));
+	}
+
+	public async syncChangeFromStudio(change: IChange) {
+		if (change.source === null) {
+		} else {
+		}
+	}
 
 	public async syncChangesFromStudio(changes: Array<IChange>) {
 		changes.forEach(change => this.syncChangeFromStudio(change));
@@ -205,8 +242,8 @@ export default class Project {
 							.map(lang => lang.ext)
 							.reduce((accum, ext) => accum || filePath.endsWith(ext), false),
 				})
-				.on("change", (filePath, stats) => this.syncChangeToStudio(filePath, stats))
-				.on("add", (filePath, stats) => this.syncChangeToStudio(filePath, stats))
+				.on("change", filePath => this.syncChangeToStudio(filePath))
+				.on("add", filePath => this.syncRemoveToStudio(filePath))
 				.on("unlink", (filePath: string) => {});
 		}
 	}

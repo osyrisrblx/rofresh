@@ -2,10 +2,13 @@ export interface IRofreshConfig {
 	placeIds?: Array<number>;
 }
 
-export interface IChange {
+export interface IChangeBase {
 	type: string;
 	path: Array<string>;
-	source: string;
+}
+
+export interface IChange extends IChangeBase {
+	source: string | null;
 }
 
 export interface IClientBody {

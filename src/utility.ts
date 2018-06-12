@@ -16,7 +16,6 @@ const WIN32_SUFFIX = ".exe";
 const DARWIN_CMD = "ps -ax | grep ";
 
 export function isProcessRunningSync(name: string) {
-	const plat = process.platform;
 	let cmd = "";
 	if (process.platform === "win32") {
 		cmd = WIN32_CMD;

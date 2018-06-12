@@ -1,6 +1,5 @@
 import child_process = require("mz/child_process");
 import fs = require("mz/fs");
-import path = require("path");
 
 export default class Language {
 	private static readonly _instances = new Array<Language>();
@@ -21,7 +20,7 @@ export default class Language {
 		Language._instances.push(this);
 		const middle = Language.instances
 			.map(lang => lang.ext)
-			.reduce((result, ext, index) => result + (index !== 0 ? "$|" : "") + ".*\\" + ext, "");
+			.reduce((result, extension, index) => result + (index !== 0 ? "$|" : "") + ".*\\" + extension, "");
 		Language.ignoreRegExp = new RegExp("^(.(?!" + middle + "))*$");
 	}
 
