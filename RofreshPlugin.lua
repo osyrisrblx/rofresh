@@ -65,6 +65,10 @@ end
 
 coroutine.wrap(function()
 	while wait() do
+		if game.PlaceId == 0 then
+			game:GetPropertyChangedSignal("PlaceId"):Wait()
+		end
+
 		local success, rawJsonOrError = pcall(function()
 			return HttpService:GetAsync(SERVER_URL, true, HEADERS)
 		end)
