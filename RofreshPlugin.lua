@@ -90,6 +90,8 @@ coroutine.wrap(function()
 					end
 				else
 					warn("Server Error", payloadOrError.error)
+					-- do throttle
+					success = false
 				end
 			else
 				warn("JSON Error", payloadOrError, #rawJsonOrError, rawJsonOrError)
