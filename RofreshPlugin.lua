@@ -33,7 +33,7 @@ end
 _G.rofresh = {}
 function _G.rofresh.debug()
 	DEBUG = not DEBUG
-	debugPrint("debug", DEBUG)
+	print("debug", DEBUG)
 end
 
 local function findFirstChildOfNameAndClass(parent, name, className)
@@ -79,15 +79,20 @@ coroutine.wrap(function()
 					for _, change in pairs(payloadOrError) do
 						local scriptObject = getScriptObject(change.path, change.type)
 						if scriptObject then
-							debugPrint("Write", scriptObject:GetFullName())
-							scriptObject.Source = change.source
+							if change.source then
+								debugPrint("Write", scriptObject:GetFullName())
+								scriptObject.Source = change.source
+							else
+								debugPrint("Delete", scriptObject:GetFullName())
+								scriptObject:Destroy()
+							end
 						end
 					end
 				else
 					warn("Server Error", payloadOrError.error)
 				end
 			else
-				warn("JSON Error", payloadOrError)
+				warn("JSON Error", payloadOrError, #rawJsonOrError, rawJsonOrError)
 			end
 		else
 			if rawJsonOrError == HTTP_NOT_ENABLED then
@@ -149,8 +154,16 @@ local function syncSelection()
 	]]
 end
 
-local button = plugin:CreateToolbar("Rofresh"):CreateButton("Sync Selection", "", "")
-button.ClickableWhenViewportHidden = true
-button.Click:Connect(syncSelection)
+local toolbar = plugin:CreateToolbar("Rofresh")
+
+local syncSelectionButton = toolbar:CreateButton("Sync Selection", "", "")
+syncSelectionButton.ClickableWhenViewportHidden = true
+syncSelectionButton.Click:Connect(syncSelection)
+
+-- TODO: remove
+-- unsure
+local debugButton = toolbar:CreateButton("Debug", "", "")
+debugButton.ClickableWhenViewportHidden = true
+debugButton.Click:Connect(_G.rofresh.debug)
 
 print("Rofresh Studio Plugin running..")
