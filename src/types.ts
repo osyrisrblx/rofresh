@@ -3,7 +3,7 @@ export interface IRofreshConfig {
 }
 
 export interface IChangeBase {
-	type: string;
+	type?: string;
 	path: Array<string>;
 }
 

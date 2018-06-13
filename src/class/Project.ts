@@ -45,8 +45,8 @@ export default class Project {
 	public static readonly instances: ReadonlyArray<Project> = Project._instances;
 
 	private isRunning = false;
-	private watcher: chokidar.FSWatcher | undefined;
-	private configWatcher: chokidar.FSWatcher | undefined;
+	private watcher?: chokidar.FSWatcher;
+	private configWatcher?: chokidar.FSWatcher;
 	private config: IRofreshConfig = {};
 
 	public readonly placeIds = new Set<number>();
