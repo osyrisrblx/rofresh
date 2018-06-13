@@ -5,7 +5,7 @@ local PORT = 8888
 local URL_TEMPLATE = "http://localhost:%d"
 local SERVER_URL = string.format(URL_TEMPLATE, PORT)
 local CLIENT_ID = HttpService:GenerateGUID(false)
-local HEADERS = { id = CLIENT_ID }
+local HEADERS = { ["cleint-id"] = CLIENT_ID }
 local OUTPUT_PREFIX = "[Rofresh]"
 local DEBUG = false
 
@@ -44,7 +44,7 @@ local function findFirstChildOfNameAndClass(parent, name, className)
 	end
 end
 
-local function getScriptObject(path, className)
+local function getScriptObject(path, className, doCreate)
 	local name = table.remove(path)
 	local parent = game
 	for i = 1, #path do
@@ -56,7 +56,7 @@ local function getScriptObject(path, className)
 		parent = object
 	end
 	local scriptObject = findFirstChildOfNameAndClass(parent, name, className)
-	if not scriptObject then
+	if not scriptObject and doCreate then
 		scriptObject = Instance.new(className, parent)
 		scriptObject.Name = name
 	end
@@ -84,9 +84,10 @@ coroutine.wrap(function()
 			if success then
 				if not payloadOrError.error then
 					for _, change in pairs(payloadOrError) do
-						local scriptObject = getScriptObject(change.path, change.type)
+						local doCreate = change.source ~= nil
+						local scriptObject = getScriptObject(change.path, change.type, doCreate)
 						if scriptObject then
-							if change.source then
+							if doCreate then
 								debugPrint("Write", scriptObject:GetFullName())
 								scriptObject.Source = change.source
 							else

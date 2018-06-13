@@ -21,6 +21,7 @@
 		"no-bitwise": false,
 		"variable-name": false,
 		"max-classes-per-file": false,
-		"no-unused-expression": false
+		"no-unused-expression": false,
+		"interface-name": false
 	}
 }

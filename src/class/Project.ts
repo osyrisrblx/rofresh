@@ -44,8 +44,8 @@ export default class Project {
 	public static readonly instances: ReadonlyArray<Project> = Project._instances;
 
 	private isRunning = false;
-	private watcher: chokidar.FSWatcher | undefined;
-	private configWatcher: chokidar.FSWatcher | undefined;
+	private watcher?: chokidar.FSWatcher;
+	private configWatcher?: chokidar.FSWatcher;
 	private config: IRofreshConfig = {};
 
 	public readonly placeIds = new Set<number>();
@@ -88,7 +88,6 @@ export default class Project {
 	}
 
 	private async readConfig(configPath: string, attempt = 1) {
-		console.log("readConfig", configPath);
 		// reset before attempting to read
 		this.config = {};
 
@@ -243,8 +242,8 @@ export default class Project {
 							.reduce((accum, ext) => accum || filePath.endsWith(ext), false),
 				})
 				.on("change", filePath => this.syncChangeToStudio(filePath))
-				.on("add", filePath => this.syncRemoveToStudio(filePath))
-				.on("unlink", (filePath: string) => {});
+				.on("add", filePath => this.syncChangeToStudio(filePath))
+				.on("unlink", filePath => this.syncRemoveToStudio(filePath));
 		}
 	}
 

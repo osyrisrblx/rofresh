@@ -1,28 +1,19 @@
-import http = require("http");
 import fs = require("mz/fs");
 import path = require("path");
 
 import Client from "./class/Client";
 import Project from "./class/Project";
+import Server from "./class/Server";
 import { IClientBody } from "./types";
-import { isProcessRunningSync, writeError } from "./utility";
+import { isProcessRunningSync, writeError, writeJson } from "./utility";
 
 const PORT = 8888;
-const PLUGIN_FILE_NAME = "RofreshPlugin.lua";
-const ROBLOX_STUDIO_PROCESS_NAME = "RobloxStudioBeta";
 
-let server: http.Server | undefined;
-let running = false;
+const server = new Server();
+server.enabled = false;
 
-export enum PluginInstallResult {
-	Success,
-	Failure,
-	PromptRestartStudio,
-	AlreadyInstalled, // TODO: check version
-}
-
-function onRequest(request: http.IncomingMessage, response: http.ServerResponse) {
-	const clientId = request.headers.id;
+server.get("/", (request, response) => {
+	const clientId = request.headers["client-id"];
 	const placeIdStr = request.headers["roblox-id"];
 	if (clientId && typeof clientId === "string") {
 		if (placeIdStr && typeof placeIdStr === "string") {
@@ -75,66 +66,26 @@ function onRequest(request: http.IncomingMessage, response: http.ServerResponse)
 	} else {
 		writeError(response, "Bad clientId!");
 	}
-}
+});
 
-function getPluginInstallPathWin32() {
-	const appData = process.env.LOCALAPPDATA;
-	if (appData) {
-		const robloxFolder = path.join(appData, "Roblox");
-		if (fs.existsSync(robloxFolder)) {
-			const pluginsFolder = path.join(robloxFolder, "Plugins");
-			if (!fs.existsSync(pluginsFolder)) {
-				fs.mkdirSync(pluginsFolder);
-			}
-			return path.join(pluginsFolder, PLUGIN_FILE_NAME);
-		}
-	}
-}
+server.post("/", (request, response) => {
+	writeJson(response, {
+		hello: "world",
+		url: request.url,
+	});
+});
 
-function getPluginInstallPathDarwin() {
-	return undefined;
-}
+server.listen(PORT);
+
+export const PLUGIN_URL = "https://www.roblox.com/";
+
+export { installPlugin, PluginInstallResult } from "./utility";
 
 /**
  * is rofresh currently running
  */
 export function isRunning() {
-	return running;
-}
-
-/**
- * attempts to automatically install the Rofresh Roblox Studio plugin
- */
-export function installPlugin(installDir?: string) {
-	const pluginPath = path.join(__dirname, "..", PLUGIN_FILE_NAME);
-	let installPath: string | undefined;
-	if (installDir) {
-		installPath = path.join(installDir, "Plugins", PLUGIN_FILE_NAME);
-	} else {
-		if (process.platform === "win32") {
-			installPath = getPluginInstallPathWin32();
-		} else if (process.platform === "darwin") {
-			installPath = getPluginInstallPathDarwin();
-			// TODO
-			return PluginInstallResult.Failure;
-		} else {
-			return PluginInstallResult.Failure;
-		}
-	}
-
-	// validate paths
-	if (!installPath || !fs.existsSync(pluginPath)) {
-		return PluginInstallResult.Failure;
-	}
-
-	// copy
-	fs.writeFileSync(installPath, fs.readFileSync(pluginPath));
-
-	if (isProcessRunningSync(ROBLOX_STUDIO_PROCESS_NAME)) {
-		return PluginInstallResult.PromptRestartStudio;
-	} else {
-		return PluginInstallResult.Success;
-	}
+	return server.enabled;
 }
 
 /**
@@ -144,7 +95,7 @@ export function addProject(dir: string, onlyIfNone = false) {
 	if (!onlyIfNone || Project.instances.length === 0) {
 		if (!Project.instances.reduce((accum, value) => accum || value.directory === dir, false)) {
 			const project = new Project(dir);
-			if (running) {
+			if (server.enabled) {
 				project.start();
 			}
 		}
@@ -166,18 +117,11 @@ export function removeProject(dir: string) {
  * stops rofresh
  */
 export function stop() {
-	if (running) {
+	if (server.enabled) {
 		console.log("stop");
-		running = false;
+		server.enabled = false;
 		Project.instances.forEach(project => project.stop());
-		Client.instances.forEach(client => {
-			client.disconnect();
-			client.remove();
-		});
-		if (server) {
-			server.close();
-			server = undefined;
-		}
+		Client.instances.forEach(client => client.remove());
 	}
 }
 
@@ -185,10 +129,9 @@ export function stop() {
  * starts rofresh
  */
 export function start() {
-	if (!running) {
+	if (!server.enabled) {
 		console.log("start");
-		running = true;
-		server = http.createServer(onRequest).listen(PORT);
+		server.enabled = true;
 		Project.instances.forEach(project => project.start());
 	}
 }
