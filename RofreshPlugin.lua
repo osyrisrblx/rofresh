@@ -5,7 +5,7 @@ local PORT = 8888
 local URL_TEMPLATE = "http://localhost:%d"
 local SERVER_URL = string.format(URL_TEMPLATE, PORT)
 local CLIENT_ID = HttpService:GenerateGUID(false)
-local HEADERS = { ["cleint-id"] = CLIENT_ID }
+local HEADERS = { ["client-id"] = CLIENT_ID }
 local OUTPUT_PREFIX = "[Rofresh]"
 local DEBUG = false
 
