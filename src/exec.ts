@@ -3,6 +3,7 @@ const jsLog = console.log;
 console.log = (...args: Array<any>) => jsLog("\x1b[31m[Rofresh]\x1b[0m", ...args);
 
 import fs = require("fs");
+import path = require("path");
 import util = require("util");
 
 import commander = require("commander");
@@ -10,7 +11,8 @@ import rofresh = require("./rofresh");
 
 const DEFAULT_PROJECT_DIR = ".";
 
-const pkgVersion = JSON.parse(fs.readFileSync("package.json", { encoding: "utf8" })).version as string;
+const pkgVersion = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), { encoding: "utf8" }))
+	.version as string;
 
 commander
 	.version(pkgVersion, "-v, --version")
