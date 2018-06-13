@@ -1,6 +1,8 @@
 import child_process = require("mz/child_process");
 import fs = require("mz/fs");
 
+import { getFileContents } from "../utility";
+
 export default class Language {
 	private static readonly _instances = new Array<Language>();
 	public static readonly instances: ReadonlyArray<Language> = Language._instances;
@@ -10,7 +12,7 @@ export default class Language {
 	constructor(
 		public name: string,
 		public ext: string,
-		public getSource = async (filePath: string): Promise<Buffer> => fs.readFile(filePath),
+		public getSource = (filePath: string): Promise<Buffer> => getFileContents(filePath),
 	) {
 		Language.instances.forEach(lang => {
 			if (lang.name === this.name || lang.ext === this.ext) {

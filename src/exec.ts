@@ -10,10 +10,7 @@ import rofresh = require("./rofresh");
 
 const DEFAULT_PROJECT_DIR = ".";
 
-const pkgVersion = process.env.npm_package_version || "0.0.0";
-if (typeof pkgVersion !== "string") {
-	throw new Error("package.json version must be a string!");
-}
+const pkgVersion = JSON.parse(fs.readFileSync("../package.json", { encoding: "utf8" })).version as string;
 
 commander
 	.version(pkgVersion, "-v, --version")

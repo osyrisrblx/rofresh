@@ -15,56 +15,56 @@ server.enabled = false;
 server.get("/", (request, response) => {
 	const clientId = request.headers["client-id"];
 	const placeIdStr = request.headers["roblox-id"];
-	if (clientId && typeof clientId === "string") {
-		if (placeIdStr && typeof placeIdStr === "string") {
-			const placeId = parseInt(placeIdStr, 10);
-			if (!isNaN(placeId)) {
-				if (placeId === 0) {
-					throw new Error("placeId must not be 0");
-				}
-				let client = Client.instances.filter(value => value.id === clientId)[0];
-				if (client) {
-					if (client.placeId !== placeId) {
-						client.placeId = placeId;
-						client.fullSyncToStudio();
-					}
-				} else {
-					client = new Client(clientId, placeId);
-				}
-				if (client) {
-					if (request.method === "GET") {
-						client.setResponse(response);
-					} else if (request.method === "POST") {
-						// TODO
-						let data = "";
-						request
-							.on("close", () => client.disconnect(response))
-							.on("data", chunk => (data += chunk.toString()))
-							.on("end", () => {
-								let clientBody: IClientBody | undefined;
-								try {
-									clientBody = JSON.parse(data);
-								} catch (e) {}
-								if (clientBody) {
-									const changes = clientBody.changes;
-									const projectId = clientBody.projectId;
-									if (changes && changes.length > 0 && projectId) {
-										client.syncChangesFromStudio(projectId, changes);
-									}
-								}
-							});
-					}
-				} else {
-					throw new Error("Client placeId mismatch!");
-				}
-			} else {
-				throw new Error("placeId must be a number!");
-			}
-		} else {
-			throw new Error("Bad placeId!");
+	if (!clientId || typeof clientId !== "string") {
+		throw new Error("Bad clientId!");
+	}
+
+	if (!placeIdStr || typeof placeIdStr !== "string") {
+		throw new Error("Bad placeId!");
+	}
+
+	const placeId = parseInt(placeIdStr, 10);
+	if (typeof placeId !== "number" || isNaN(placeId)) {
+		throw new Error("placeId must be a number!");
+	}
+
+	if (placeId === 0) {
+		throw new Error("placeId must not be 0");
+	}
+
+	let client = Client.instances.filter(value => value.id === clientId)[0];
+	if (client) {
+		if (client.placeId !== placeId) {
+			client.placeId = placeId;
+			client.fullSyncToStudio();
 		}
 	} else {
-		throw new Error("Bad clientId!");
+		client = new Client(clientId, placeId);
+	}
+
+	if (client) {
+		if (request.method === "GET") {
+			client.setResponse(response);
+		} else if (request.method === "POST") {
+			// TODO
+			let data = "";
+			request
+				.on("close", () => client.disconnect(response))
+				.on("data", chunk => (data += chunk.toString()))
+				.on("end", () => {
+					let clientBody: IClientBody | undefined;
+					try {
+						clientBody = JSON.parse(data);
+					} catch (e) {}
+					if (clientBody) {
+						const changes = clientBody.changes;
+						const projectId = clientBody.projectId;
+						if (changes && changes.length > 0 && projectId) {
+							client.syncChangesFromStudio(projectId, changes);
+						}
+					}
+				});
+		}
 	}
 });
 

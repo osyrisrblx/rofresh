@@ -102,3 +102,19 @@ export function installPlugin(installDir?: string) {
 export function wait(ms: number) {
 	return new Promise<undefined>(resolve => setTimeout(() => resolve(), ms));
 }
+
+const MAX_FILE_RETRY = 5;
+
+export async function getFileContents(filePath: string) {
+	let attempt = 0;
+	let fileContents: Buffer;
+	do {
+		attempt++;
+		fileContents = await fs.readFile(filePath);
+		// hack!
+		if (fileContents.length === 0 && attempt <= MAX_FILE_RETRY) {
+			await wait(10);
+		}
+	} while (fileContents.length === 0 && attempt <= MAX_FILE_RETRY);
+	return fileContents;
+}
