@@ -3,6 +3,8 @@ import util = require("util");
 
 import anymatch = require("anymatch");
 
+import { writeError } from "../utility";
+
 export type RouteCallback = (req: http.IncomingMessage, res: http.ServerResponse) => void;
 
 export interface IRoute {
@@ -24,7 +26,13 @@ export default class Server {
 				const validRoutes = this.routes.filter(route => route.method === req.method);
 				for (const route of validRoutes) {
 					if (anymatch(route.glob, desiredRoute)) {
-						route.callback(req, res);
+						try {
+							route.callback(req, res);
+						} catch (e) {
+							if (e instanceof Error) {
+								writeError(res, e.message);
+							}
+						}
 						didRespond = true;
 						return;
 					}

@@ -5,7 +5,7 @@ import Client from "./class/Client";
 import Project from "./class/Project";
 import Server from "./class/Server";
 import { IClientBody } from "./types";
-import { isProcessRunningSync, writeError, writeJson } from "./utility";
+import { writeJson } from "./utility";
 
 const PORT = 8888;
 
@@ -19,6 +19,9 @@ server.get("/", (request, response) => {
 		if (placeIdStr && typeof placeIdStr === "string") {
 			const placeId = parseInt(placeIdStr, 10);
 			if (!isNaN(placeId)) {
+				if (placeId === 0) {
+					throw new Error("placeId must not be 0");
+				}
 				let client = Client.instances.filter(value => value.id === clientId)[0];
 				if (client) {
 					if (client.placeId !== placeId) {
@@ -27,9 +30,6 @@ server.get("/", (request, response) => {
 					}
 				} else {
 					client = new Client(clientId, placeId);
-					if (client.placeId === 0) {
-						writeError(response, "placeId must not be 0");
-					}
 				}
 				if (client) {
 					if (request.method === "GET") {
@@ -55,16 +55,16 @@ server.get("/", (request, response) => {
 							});
 					}
 				} else {
-					writeError(response, "Client placeId mismatch!");
+					throw new Error("Client placeId mismatch!");
 				}
 			} else {
-				writeError(response, "placeId must be a number!");
+				throw new Error("placeId must be a number!");
 			}
 		} else {
-			writeError(response, "Bad placeId!");
+			throw new Error("Bad placeId!");
 		}
 	} else {
-		writeError(response, "Bad clientId!");
+		throw new Error("Bad clientId!");
 	}
 });
 
