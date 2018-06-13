@@ -10,7 +10,7 @@ import rofresh = require("./rofresh");
 
 const DEFAULT_PROJECT_DIR = ".";
 
-const pkgVersion = JSON.parse(fs.readFileSync("../package.json", { encoding: "utf8" })).version as string;
+const pkgVersion = JSON.parse(fs.readFileSync("package.json", { encoding: "utf8" })).version as string;
 
 commander
 	.version(pkgVersion, "-v, --version")

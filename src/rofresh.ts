@@ -82,7 +82,7 @@ export const PLUGIN_URL = "https://www.roblox.com/";
 export { installPlugin, PluginInstallResult } from "./utility";
 
 /**
- * is rofresh currently running
+ * determines if rofresh is currently running
  */
 export function isRunning() {
 	return server.enabled;

@@ -15,3 +15,7 @@ export interface IClientBody {
 	projectId?: string;
 	changes?: Array<IChange>;
 }
+
+export interface IServerBody {}
+
+export interface IServerInit {}

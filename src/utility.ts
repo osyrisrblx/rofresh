@@ -5,13 +5,8 @@ import path = require("path");
 
 const PLUGIN_FILE_NAME = "RofreshPlugin.lua";
 const ROBLOX_STUDIO_PROCESS_NAME = "RobloxStudioBeta";
-
-export enum PluginInstallResult {
-	Success,
-	Failure,
-	PromptRestartStudio,
-	AlreadyInstalled, // TODO: check version
-}
+const MAX_FILE_RETRY = 5;
+const FILE_RETRY_DELAY = 10; // ms
 
 export function writeJson(res: http.ServerResponse, object: any) {
 	res.setHeader("content-type", "application/json");
@@ -21,6 +16,24 @@ export function writeJson(res: http.ServerResponse, object: any) {
 
 export function writeError(res: http.ServerResponse, errorMsg: string) {
 	writeJson(res, { error: errorMsg });
+}
+
+export function wait(ms: number) {
+	return new Promise<undefined>(resolve => setTimeout(() => resolve(), ms));
+}
+
+export async function getFileContents(filePath: string) {
+	let attempt = 0;
+	let fileContents: Buffer;
+	do {
+		attempt++;
+		fileContents = await fs.readFile(filePath);
+		// hack!
+		if (fileContents.length === 0 && attempt <= MAX_FILE_RETRY) {
+			await wait(FILE_RETRY_DELAY);
+		}
+	} while (fileContents.length === 0 && attempt <= MAX_FILE_RETRY);
+	return fileContents;
 }
 
 const WIN32_CMD = "tasklist";
@@ -64,6 +77,13 @@ function getPluginInstallPathDarwin() {
 	return undefined;
 }
 
+export enum PluginInstallResult {
+	Success,
+	Failure,
+	PromptRestartStudio,
+	AlreadyInstalled, // TODO: check version
+}
+
 /**
  * attempts to automatically install the Rofresh Roblox Studio plugin
  */
@@ -97,24 +117,4 @@ export function installPlugin(installDir?: string) {
 	} else {
 		return PluginInstallResult.Success;
 	}
-}
-
-export function wait(ms: number) {
-	return new Promise<undefined>(resolve => setTimeout(() => resolve(), ms));
-}
-
-const MAX_FILE_RETRY = 5;
-
-export async function getFileContents(filePath: string) {
-	let attempt = 0;
-	let fileContents: Buffer;
-	do {
-		attempt++;
-		fileContents = await fs.readFile(filePath);
-		// hack!
-		if (fileContents.length === 0 && attempt <= MAX_FILE_RETRY) {
-			await wait(10);
-		}
-	} while (fileContents.length === 0 && attempt <= MAX_FILE_RETRY);
-	return fileContents;
 }
