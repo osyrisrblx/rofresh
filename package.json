@@ -1,13 +1,12 @@
 {
 	"name": "rofresh",
-	"version": "1.0.25",
+	"version": "1.0.26",
 	"description": "An automated sync plugin for Roblox Studio",
 	"main": "out/rofresh.js",
 	"typings": "typings/rofresh.d.ts",
 	"scripts": {
 		"lint": "./node_modules/.bin/tslint --project ./tsconfig.json",
-		"prepublishOnly": "tsc",
-		"preinstall": "./node_modules/.bin/tsc"
+		"prepublishOnly": "tsc"
 	},
 	"bin": {
 		"rofresh": "./out/exec.js"

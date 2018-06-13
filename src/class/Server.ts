@@ -3,9 +3,9 @@ import util = require("util");
 
 import anymatch = require("anymatch");
 
-type RouteCallback = (req: http.IncomingMessage, res: http.ServerResponse) => void;
+export type RouteCallback = (req: http.IncomingMessage, res: http.ServerResponse) => void;
 
-interface IRoute {
+export interface IRoute {
 	readonly glob: string;
 	readonly callback: RouteCallback;
 	readonly method: string;

@@ -24,7 +24,7 @@ export default class Client {
 
 	public remove() {
 		this.disconnect();
-		const index = Client._instances.indexOf(this);
+		const index = Client.instances.indexOf(this);
 		if (index > -1) {
 			Client._instances.splice(index, 1);
 		}
