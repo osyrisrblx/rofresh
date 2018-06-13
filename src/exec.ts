@@ -11,7 +11,7 @@ import rofresh = require("./rofresh");
 
 const DEFAULT_PROJECT_DIR = ".";
 
-const pkgVersion = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), { encoding: "utf8" }))
+const pkgVersion = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), { encoding: "utf8" }))
 	.version as string;
 
 commander
