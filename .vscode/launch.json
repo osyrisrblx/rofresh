@@ -1,0 +1,24 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Launch Program",
+			"sourceMaps": true,
+			"windows": {
+				"useWSL": true,
+			},
+			"program": "${workspaceFolder}/out/exec.js",
+			"args": [
+				"../../Nextcloud/Roblox/SwordHeightsRoyal/Shared",
+				"../../Nextcloud/Roblox/SwordHeightsRoyal/Lobby",
+				"../../Nextcloud/Roblox/SwordHeightsRoyal/Arena"
+			],
+			"preLaunchTask": "build",
+			"outFiles": [
+				"${workspaceFolder}/out/**/*.js"
+			]
+		}
+	]
+}

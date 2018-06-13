@@ -98,3 +98,7 @@ export function installPlugin(installDir?: string) {
 		return PluginInstallResult.Success;
 	}
 }
+
+export function wait(ms: number) {
+	return new Promise<undefined>(resolve => setTimeout(() => resolve(), ms));
+}
