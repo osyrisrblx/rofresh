@@ -12,8 +12,12 @@
 	"bin": {
 		"rofresh": "./out/exec.js"
 	},
+	"engines": {
+		"node": ">=10.0.0",
+		"npm": ">=6.0.0"
+	},
 	"author": "Osyris",
-	"license": "ISC",
+	"license": "MIT",
 	"devDependencies": {
 		"@types/chokidar": "^1.7.5",
 		"@types/mz": "0.0.32",

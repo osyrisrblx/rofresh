@@ -33,3 +33,7 @@ export function isProcessRunningSync(name: string) {
 			.indexOf(name.toLowerCase()) > -1
 	);
 }
+
+export function wait(ms: number) {
+	return new Promise<undefined>(resolve => setTimeout(() => resolve(), ms));
+}

@@ -5,13 +5,14 @@ import util = require("util");
 import uuid = require("uuid/v4");
 
 import { IChange, IChangeBase, IRofreshConfig } from "../types";
+import { wait } from "../utility";
 import Client from "./Client";
 import Language from "./Language";
 
 const CONFIG_FILE_NAME = "rofresh.json";
 const SOURCE_FOLDER_NAME = "src";
 
-const MAX_CONFIG_RETRY = 5;
+const MAX_FILE_RETRY = 5;
 
 const FILE_TYPE_EXTENSIONS: Array<[string, string]> = [
 	["client", "LocalScript"],
@@ -87,23 +88,24 @@ export default class Project {
 		}
 	}
 
-	private async readConfig(configPath: string, attempt = 1) {
-		console.log("readConfig", configPath);
+	private async readConfig(configPath: string) {
 		// reset before attempting to read
 		this.config = {};
-
 		if (await fs.exists(configPath)) {
-			let fileContents: string | undefined;
-			try {
+			let attempt = 0;
+			let fileContents: string;
+			do {
+				attempt++;
 				fileContents = await fs.readFile(configPath, "utf8");
+				// hack!
+				if (fileContents.length === 0 && attempt <= MAX_FILE_RETRY) {
+					await wait(10);
+				}
+			} while (fileContents.length === 0 && attempt <= MAX_FILE_RETRY);
+			try {
 				this.config = JSON.parse(fileContents);
 			} catch (e) {
-				if (fileContents !== undefined && fileContents.length === 0 && attempt <= MAX_CONFIG_RETRY) {
-					setTimeout(() => this.readConfig(configPath, attempt + 1), 100);
-				} else {
-					// TODO: emit error
-					console.log(util.format("Could not parse JSON [ %s ]", configPath));
-				}
+				console.log(util.format("Could not parse JSON [ %s ]", configPath));
 				return;
 			}
 		} else {
@@ -126,7 +128,6 @@ export default class Project {
 			configPlaceIds
 				.filter(placeId => !this.placeIds.has(placeId))
 				.forEach(placeId => this.placeIds.add(placeId));
-			console.log(this.directory, [...this.placeIds].toString());
 		}
 	}
 
@@ -168,16 +169,27 @@ export default class Project {
 
 		const ext = path.extname(filePath);
 
-		let changeSource: string | undefined;
+		let language: Language | undefined;
 		for (const lang of Language.instances) {
 			if (ext === lang.ext) {
-				changeSource = (await lang.getSource(filePath)).toString();
+				language = lang;
 			}
 		}
 
-		if (!changeSource) {
+		if (!language) {
 			throw new Error("Could not find applicable Language for filePath! [ " + filePath + " ]");
 		}
+
+		let attempt = 0;
+		let changeSource: string;
+		do {
+			attempt++;
+			changeSource = (await language.getSource(filePath)).toString();
+			// hack!
+			if (changeSource.length === 0 && attempt <= MAX_FILE_RETRY) {
+				await wait(10);
+			}
+		} while (changeSource.length === 0 && attempt <= MAX_FILE_RETRY);
 
 		return {
 			path: changeBase.path,
@@ -243,8 +255,8 @@ export default class Project {
 							.reduce((accum, ext) => accum || filePath.endsWith(ext), false),
 				})
 				.on("change", filePath => this.syncChangeToStudio(filePath))
-				.on("add", filePath => this.syncRemoveToStudio(filePath))
-				.on("unlink", (filePath: string) => {});
+				.on("add", filePath => this.syncChangeToStudio(filePath))
+				.on("unlink", filePath => this.syncRemoveToStudio(filePath));
 		}
 	}
 
