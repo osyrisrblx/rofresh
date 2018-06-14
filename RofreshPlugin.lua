@@ -1,3 +1,4 @@
+local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local Selection = game:GetService("Selection")
 
@@ -7,6 +8,7 @@ local SERVER_URL = string.format(URL_TEMPLATE, PORT)
 local CLIENT_ID = HttpService:GenerateGUID(false)
 local HEADERS = { ["client-id"] = CLIENT_ID }
 local OUTPUT_PREFIX = "[Rofresh]"
+local MAX_REQUESTS_PER_MINUTE = 60
 local DEBUG = false
 
 -- errors
@@ -65,6 +67,7 @@ end
 
 coroutine.wrap(function()
 	while wait() do
+		-- check game.PlaceId
 		if game.PlaceId == 0 then
 			warn("game.PlaceId cannot be 0")
 			while game.PlaceId == 0 do
@@ -105,6 +108,7 @@ coroutine.wrap(function()
 				warn("JSON Error", payloadOrError, #rawJsonOrError, rawJsonOrError)
 			end
 		else
+			-- HttpService.HttpEnabled prompt
 			if rawJsonOrError == HTTP_NOT_ENABLED then
 				Selection:Set({HttpService})
 				local prop
@@ -117,13 +121,14 @@ coroutine.wrap(function()
 				and rawJsonOrError ~= CURL_TIMEOUT_ERROR
 				and rawJsonOrError ~= CURL_NOTHING_ERROR
 				and rawJsonOrError ~= CURL_RECEIVE_ERROR then
+				-- silence known common server errors
 				warn("Connection Error", rawJsonOrError)
 			end
 		end
 
 		-- dont waste requests
 		if not success then
-			wait(1)
+			wait(60/MAX_REQUESTS_PER_MINUTE)
 		end
 	end
 end)()
