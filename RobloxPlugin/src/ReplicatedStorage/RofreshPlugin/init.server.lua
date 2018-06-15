@@ -14,8 +14,7 @@ local OUTPUT_PREFIX = "[Rofresh]"
 -- static constants
 local URL_TEMPLATE = "http://localhost:%d"
 local SERVER_URL = string.format(URL_TEMPLATE, PORT)
-local CLIENT_ID = HttpService:GenerateGUID(false)
-local HEADERS = { ["client-id"] = CLIENT_ID }
+local HEADERS = { ["client-id"] = HttpService:GenerateGUID(false) }
 
 -- error constants
 local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game settings"
@@ -38,6 +37,9 @@ local function debugPrint(...)
 		print(...)
 	end
 end
+
+local localTag = HttpService:GenerateGUID(false)
+_G.rofreshTag = localTag
 
 --* plugin object creation *--
 do
@@ -75,7 +77,7 @@ end
 
 --* main loop *--
 coroutine.wrap(function()
-	while wait() do
+	while _G.rofreshTag == localTag and wait() do
 		-- check game.PlaceId
 		if game.PlaceId == 0 then
 			warn("game.PlaceId cannot be 0")
@@ -83,10 +85,12 @@ coroutine.wrap(function()
 				game:GetPropertyChangedSignal("PlaceId"):Wait()
 			end
 		end
+		if _G.rofreshTag ~= localTag then return end
 
 		local success, rawJsonOrError = pcall(function()
 			return HttpService:GetAsync(SERVER_URL, true, HEADERS)
 		end)
+		if _G.rofreshTag ~= localTag then return end
 
 		if success then
 			local payloadOrError
@@ -96,20 +100,23 @@ coroutine.wrap(function()
 			if success then
 				local payload = payloadOrError
 				if not payload.error then
-					assert(payload.projectId)
-					assert(payload.changes)
+					for i = 1, #payload do
+						local projectPayload = payload[i]
+						assert(projectPayload.projectId)
+						assert(projectPayload.changes)
 
-					local project = Project.instances[payload.projectId]
-					if not project then
-						project = Project.new(payload.projectId, payload.tagOverride)
-					end
+						local project = Project.instances[projectPayload.projectId]
+						if not project then
+							project = Project.new(projectPayload.projectId, projectPayload.tagOverride)
+						end
 
-					if payload.initialPaths then
-						project:initialize(payload.initialPaths)
-					end
+						if projectPayload.initialPaths then
+							project:initialize(projectPayload.initialPaths)
+						end
 
-					if payload.changes then
-						project:processChanges(payload.changes)
+						if projectPayload.changes then
+							project:processChanges(projectPayload.changes)
+						end
 					end
 				else
 					-- do throttle
@@ -127,6 +134,7 @@ coroutine.wrap(function()
 				while prop ~= "HttpEnabled" do
 					prop = HttpService.Changed:Wait()
 				end
+				if _G.rofreshTag ~= localTag then return end
 				-- bypass throttle
 				success = true
 			elseif  rawJsonOrError ~= CURL_CONNECT_ERROR

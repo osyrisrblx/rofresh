@@ -1,14 +1,13 @@
 export interface IRofreshConfig {
+	id?: string;
 	placeIds?: Array<number>;
 }
 
-export interface IChangeBase {
-	type?: string;
+export interface IChange {
 	path: Array<string>;
-}
-
-export interface IChange extends IChangeBase {
 	source: string | null;
+	isRename?: boolean;
+	type?: string;
 }
 
 export interface IClientPayload {
@@ -18,13 +17,7 @@ export interface IClientPayload {
 
 export interface IProjectPayload {
 	projectId: string;
-	tagOverride?: string;
-	initialPaths: Array<string>;
 	changes: Array<IChange>;
+	tagOverride?: string;
+	initialPaths?: Array<string>;
 }
-
-export interface IServerPayload {
-	projects: Array<IProjectPayload>;
-}
-
-export interface IServerInit {}

@@ -2,9 +2,8 @@ import chokidar = require("chokidar");
 import fs = require("mz/fs");
 import path = require("path");
 import util = require("util");
-import uuid = require("uuid/v4");
 
-import { IChange, IChangeBase, IRofreshConfig } from "../types";
+import { IChange, IRofreshConfig } from "../types";
 import { getFileContents } from "../utility";
 import Client from "./Client";
 import Language from "./Language";
@@ -50,7 +49,7 @@ export default class Project {
 	public readonly placeIds = new Set<number>();
 	public readonly directory: string;
 	public readonly sourceDir: string;
-	public readonly id = uuid();
+	public id = "";
 
 	constructor(directory: string) {
 		Project._instances.push(this);
@@ -118,9 +117,14 @@ export default class Project {
 				.filter(placeId => !this.placeIds.has(placeId))
 				.forEach(placeId => this.placeIds.add(placeId));
 		}
+
+		const projectId = this.config.id;
+		if (projectId !== undefined) {
+			this.id = projectId;
+		}
 	}
 
-	private async getChangeBaseFromFile(filePath: string): Promise<IChangeBase> {
+	private async getChangeBaseFromFile(filePath: string): Promise<IChange> {
 		const fullName = path.basename(filePath, path.extname(filePath));
 		const fileTypeExt = path
 			.extname(fullName)
@@ -136,12 +140,11 @@ export default class Project {
 			throw new Error("Could not determine file type! [ " + filePath + " ]");
 		}
 
-		const changeBase: IChangeBase = {
+		return {
 			path: changePath,
+			source: null,
 			type: changeType,
 		};
-
-		return changeBase;
 	}
 
 	private async getRemoveFromFile(filePath: string): Promise<IChange> {
@@ -199,12 +202,10 @@ export default class Project {
 	}
 
 	public async syncChangeToStudio(filePath: string) {
-		console.log("change", path.relative(this.sourceDir, filePath));
 		this.distributeChangeToStudio(await this.getChangeFromFile(filePath));
 	}
 
 	public async syncRemoveToStudio(filePath: string) {
-		console.log("remove", path.relative(this.sourceDir, filePath));
 		this.distributeChangeToStudio(await this.getRemoveFromFile(filePath));
 	}
 
@@ -232,9 +233,18 @@ export default class Project {
 							.map(lang => lang.ext)
 							.reduce((accum, ext) => accum || filePath.endsWith(ext), false),
 				})
-				.on("change", filePath => this.syncChangeToStudio(filePath))
-				.on("add", filePath => this.syncChangeToStudio(filePath))
-				.on("unlink", filePath => this.syncRemoveToStudio(filePath));
+				.on("unlink", filePath => {
+					console.log("unlink", filePath);
+					this.syncRemoveToStudio(filePath);
+				})
+				.on("add", filePath => {
+					console.log("add", filePath);
+					this.syncChangeToStudio(filePath);
+				})
+				.on("change", filePath => {
+					console.log("change", filePath);
+					this.syncChangeToStudio(filePath);
+				});
 		}
 	}
 

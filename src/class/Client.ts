@@ -1,6 +1,6 @@
 import http = require("http");
 
-import { IChange, IServerPayload, IProjectPayload } from "../types";
+import { IChange, IProjectPayload } from "../types";
 import { writeJson } from "../utility";
 import Project from "./Project";
 
@@ -32,25 +32,23 @@ export default class Client {
 	}
 
 	public writeResponse() {
-		if (this.response && this.sendQueue.size > 0) {
+		if (this.response) {
 			const payload = new Array<IProjectPayload>();
-
-			for (const projectId in this.sendQueue.keys()) {
-			}
-
-			const changes = new Array<IChange>();
-			while (this.sendQueue.size !== 0) {
-				const key = this.sendQueue.keys().next().value;
-				const change = this.sendQueue.get(key);
-				this.sendQueue.delete(key);
-				if (change) {
+			this.sendQueue.forEach((projectQueue, projectId) => {
+				const changes = new Array<IChange>();
+				projectQueue.forEach((change, path) => {
 					changes.push(change);
+					projectQueue.delete(path);
+				});
+				if (changes.length > 0) {
+					payload.push({ projectId, changes });
 				}
+			});
+			if (payload.length > 0) {
+				const res = this.response;
+				this.response = undefined;
+				writeJson(res, payload);
 			}
-
-			const res = this.response;
-			this.response = undefined;
-			writeJson(res, payload);
 		}
 	}
 
