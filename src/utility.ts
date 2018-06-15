@@ -3,7 +3,7 @@ import http = require("http");
 import fs = require("mz/fs");
 import path = require("path");
 
-const PLUGIN_FILE_NAME = "RofreshPlugin.lua";
+const PLUGIN_FILE_NAME = "RofreshPlugin.rbxm";
 const ROBLOX_STUDIO_PROCESS_NAME = "RobloxStudioBeta";
 const MAX_FILE_RETRY = 5;
 const FILE_RETRY_DELAY = 10; // ms
@@ -89,6 +89,9 @@ export enum PluginInstallResult {
  */
 export function installPlugin(installDir?: string) {
 	const pluginPath = path.join(__dirname, "..", PLUGIN_FILE_NAME);
+	if (!fs.existsSync(pluginPath)) {
+		throw new Error("Plugin file missing!");
+	}
 	let installPath: string | undefined;
 	if (installDir) {
 		installPath = path.join(installDir, "Plugins", PLUGIN_FILE_NAME);

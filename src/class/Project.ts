@@ -64,8 +64,8 @@ export default class Project {
 			.watch(configPath, {
 				ignoreInitial: true,
 			})
-			.on("change", (filePath, stats) => this.readConfig(configPath))
-			.on("unlink", (filePath: string) => this.remove());
+			.on("change", () => this.readConfig(configPath))
+			.on("unlink", () => this.remove());
 		this.readConfig(configPath);
 	}
 
@@ -105,7 +105,7 @@ export default class Project {
 
 		const configPlaceIds = this.config.placeIds;
 		if (configPlaceIds !== undefined) {
-			if (!configPlaceIds.reduce((accum, value) => accum && typeof value === "number" && value > 0, true)) {
+			if (!configPlaceIds.reduce((accum, value) => accum && typeof value === "number", true)) {
 				// TODO: emit error
 				console.log(util.format("Invalid configuration: placeIds [ %s ]", configPath));
 				return;
@@ -189,13 +189,13 @@ export default class Project {
 	}
 
 	public async fullSyncToStudio(client: Client) {
-		client.syncChangesToStudio(await this.getChangesFromDir());
+		client.syncToStudio(this.id, await this.getChangesFromDir());
 	}
 
 	private async distributeChangeToStudio(change: IChange) {
 		Client.instances
 			.filter(client => this.placeIds.has(client.placeId))
-			.forEach(client => client.syncChangesToStudio([change]));
+			.forEach(client => client.syncToStudio(this.id, [change]));
 	}
 
 	public async syncChangeToStudio(filePath: string) {

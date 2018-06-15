@@ -11,9 +11,10 @@
 			},
 			"program": "${workspaceFolder}/out/exec.js",
 			"args": [
-				"../../Nextcloud/Roblox/SwordHeightsRoyal/Shared",
-				"../../Nextcloud/Roblox/SwordHeightsRoyal/Lobby",
-				"../../Nextcloud/Roblox/SwordHeightsRoyal/Arena"
+				"./RobloxPlugin/"
+				// "../../Nextcloud/Roblox/SwordHeightsRoyal/Shared",
+				// "../../Nextcloud/Roblox/SwordHeightsRoyal/Lobby",
+				// "../../Nextcloud/Roblox/SwordHeightsRoyal/Arena"
 			],
 			"preLaunchTask": "build",
 			"outFiles": [

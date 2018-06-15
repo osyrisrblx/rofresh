@@ -11,11 +11,20 @@ export interface IChange extends IChangeBase {
 	source: string | null;
 }
 
-export interface IClientBody {
+export interface IClientPayload {
 	projectId?: string;
 	changes?: Array<IChange>;
 }
 
-export interface IServerBody {}
+export interface IProjectPayload {
+	projectId: string;
+	tagOverride?: string;
+	initialPaths: Array<string>;
+	changes: Array<IChange>;
+}
+
+export interface IServerPayload {
+	projects: Array<IProjectPayload>;
+}
 
 export interface IServerInit {}

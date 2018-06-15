@@ -1,6 +1,6 @@
 import http = require("http");
 
-import { IChange } from "../types";
+import { IChange, IServerPayload, IProjectPayload } from "../types";
 import { writeJson } from "../utility";
 import Project from "./Project";
 
@@ -8,11 +8,12 @@ export default class Client {
 	private static readonly _instances = new Array<Client>();
 	public static readonly instances: ReadonlyArray<Client> = Client._instances;
 
-	private changeQueue = new Map<string, IChange>();
+	private sendQueue = new Map<string, Map<string, IChange>>();
 	private response?: http.ServerResponse;
 
 	constructor(public id: string, public placeId: number) {
 		Client._instances.push(this);
+
 		this.fullSyncToStudio();
 	}
 
@@ -31,12 +32,17 @@ export default class Client {
 	}
 
 	public writeResponse() {
-		if (this.response && this.changeQueue.size !== 0) {
+		if (this.response && this.sendQueue.size > 0) {
+			const payload = new Array<IProjectPayload>();
+
+			for (const projectId in this.sendQueue.keys()) {
+			}
+
 			const changes = new Array<IChange>();
-			while (this.changeQueue.size !== 0) {
-				const key = this.changeQueue.keys().next().value;
-				const change = this.changeQueue.get(key);
-				this.changeQueue.delete(key);
+			while (this.sendQueue.size !== 0) {
+				const key = this.sendQueue.keys().next().value;
+				const change = this.sendQueue.get(key);
+				this.sendQueue.delete(key);
 				if (change) {
 					changes.push(change);
 				}
@@ -44,7 +50,7 @@ export default class Client {
 
 			const res = this.response;
 			this.response = undefined;
-			writeJson(res, changes);
+			writeJson(res, payload);
 		}
 	}
 
@@ -54,8 +60,13 @@ export default class Client {
 		this.writeResponse();
 	}
 
-	public async syncChangesToStudio(changes: Array<IChange>) {
-		changes.forEach(change => this.changeQueue.set(change.path.join("/") + "/" + change.type, change));
+	public async syncToStudio(projectId: string, changes: Array<IChange>) {
+		let projectQueue = this.sendQueue.get(projectId);
+		if (!projectQueue) {
+			projectQueue = new Map<string, IChange>();
+			this.sendQueue.set(projectId, projectQueue);
+		}
+		changes.forEach(change => projectQueue!.set(change.path.join("/") + "/" + change.type, change));
 		this.writeResponse();
 	}
 

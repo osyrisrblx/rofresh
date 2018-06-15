@@ -4,7 +4,7 @@ import path = require("path");
 import Client from "./class/Client";
 import Project from "./class/Project";
 import Server from "./class/Server";
-import { IClientBody } from "./types";
+import { IClientPayload } from "./types";
 import { writeJson } from "./utility";
 
 const PORT = 8888;
@@ -16,7 +16,8 @@ server.get("/", (request, response) => {
 	const clientId = request.headers["client-id"];
 	const placeIdStr = request.headers["roblox-id"];
 	if (!clientId || typeof clientId !== "string") {
-		throw new Error("Bad clientId!");
+		console.log(clientId);
+		throw new Error("Bad clientId! 2");
 	}
 
 	if (!placeIdStr || typeof placeIdStr !== "string") {
@@ -52,7 +53,7 @@ server.get("/", (request, response) => {
 				.on("close", () => client.disconnect(response))
 				.on("data", chunk => (data += chunk.toString()))
 				.on("end", () => {
-					let clientBody: IClientBody | undefined;
+					let clientBody: IClientPayload | undefined;
 					try {
 						clientBody = JSON.parse(data);
 					} catch (e) {}
