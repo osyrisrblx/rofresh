@@ -1,0 +1,357 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<External>null</External>
+	<External>nil</External>
+	<Item class="Script" referent="RBXDA7DAC7575584F9AA5128649B7C52E59">
+		<Properties>
+			<bool name="Disabled">false</bool>
+			<Content name="LinkedSource"><null></null></Content>
+			<string name="Name">RofreshPlugin</string>
+			<string name="ScriptGuid"></string>
+			<ProtectedString name="Source"><![CDATA[-- services
+local HttpService = game:GetService("HttpService")
+local Selection = game:GetService("Selection")
+
+-- imports
+local Project = require(script.Project)
+
+-- config constants
+local PORT = 8888
+local MAX_REQUESTS_PER_MINUTE = 60
+local DEBUG = false
+local OUTPUT_PREFIX = "[Rofresh]"
+
+-- static constants
+local URL_TEMPLATE = "http://localhost:%d"
+local SERVER_URL = string.format(URL_TEMPLATE, PORT)
+local HEADERS = { ["client-id"] = HttpService:GenerateGUID(false) }
+
+-- error constants
+local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game settings"
+local CURL_CONNECT_ERROR = "CURL error (curl_easy_perform): Couldn't connect to server (7)"
+local CURL_TIMEOUT_ERROR = "CURL error (curl_easy_perform): Timeout was reached (28)"
+local CURL_NOTHING_ERROR = "CURL error (curl_easy_perform): Server returned nothing (no headers, no data) (52)"
+local CURL_RECEIVE_ERROR = "CURL error (curl_easy_perform): Failure when receiving data from the peer (56)"
+
+-- output helper functions
+local function wrapPrinter(printer)
+	return function(...)
+		printer(OUTPUT_PREFIX, ...)
+	end
+end
+local print = wrapPrinter(print)
+local warn = wrapPrinter(warn)
+
+local function debugPrint(...)
+	if DEBUG then
+		print(...)
+	end
+end
+
+local localTag = HttpService:GenerateGUID(false)
+_G.rofresh = {}
+_G.rofresh.tag = localTag
+_G.rofresh.debugPrint = debugPrint
+
+--* plugin object creation *--
+do
+	local toolbar = plugin:CreateToolbar("Rofresh")
+
+	local syncSelectionButton = toolbar:CreateButton("Sync Selection", "", "")
+	syncSelectionButton.ClickableWhenViewportHidden = true
+	syncSelectionButton.Click:Connect(function()
+		local changes = {}
+		for _, selected in pairs(Selection:Get()) do
+			debugPrint("syncSelection", selected:GetFullName())
+			for _, descendant in pairs(selected:GetDescendants()) do
+				if descendant:IsA("LuaSourceContainer") then
+					local project = nil
+					table.insert(changes, project:getChangeFromScript(descendant))
+				end
+			end
+		end
+		--[[
+		HttpService:PostAsync(SERVER_URL, HttpService:JSONEncode({
+			projectId = "",
+			changes = changes,
+		}), Enum.HttpContentType.ApplicationJson, false, HEADERS)
+		]]
+	end)
+
+	-- TODO: remove
+	local debugButton = toolbar:CreateButton("Debug", "", "")
+	debugButton.ClickableWhenViewportHidden = true
+	debugButton.Click:Connect(function()
+		DEBUG = not DEBUG
+		print("debug", DEBUG)
+	end)
+end
+
+--* main loop *--
+coroutine.wrap(function()
+	while _G.rofresh.tag == localTag and wait() do
+		-- check game.PlaceId
+		if game.PlaceId == 0 then
+			warn("game.PlaceId cannot be 0")
+			while game.PlaceId == 0 do
+				game:GetPropertyChangedSignal("PlaceId"):Wait()
+			end
+		end
+		if _G.rofresh.tag ~= localTag then return end
+
+		local success, rawJsonOrError = pcall(function()
+			return HttpService:GetAsync(SERVER_URL, true, HEADERS)
+		end)
+		if _G.rofresh.tag ~= localTag then return end
+
+		if success then
+			local payloadOrError
+			success, payloadOrError = pcall(function()
+				return HttpService:JSONDecode(rawJsonOrError)
+			end)
+			if success then
+				local payload = payloadOrError
+				if not payload.error then
+					for i = 1, #payload do
+						local projectPayload = payload[i]
+						assert(projectPayload.projectId)
+						assert(projectPayload.changes)
+
+						local project = Project.instances[projectPayload.projectId]
+						if not project then
+							project = Project.new(projectPayload.projectId, projectPayload.tagOverride)
+						end
+
+						if projectPayload.initialPaths then
+							project:initialize(projectPayload.initialPaths)
+						end
+
+						if projectPayload.changes then
+							project:processChanges(projectPayload.changes)
+						end
+					end
+				else
+					-- do throttle
+					success = false
+					warn("Server Error", payload.error)
+				end
+			else
+				warn("JSON Error", payloadOrError, #rawJsonOrError, rawJsonOrError)
+			end
+		else
+			-- HttpService.HttpEnabled prompt
+			if rawJsonOrError == HTTP_NOT_ENABLED then
+				Selection:Set({HttpService})
+				local prop
+				while prop ~= "HttpEnabled" do
+					prop = HttpService.Changed:Wait()
+				end
+				if _G.rofresh.tag ~= localTag then return end
+				-- bypass throttle
+				success = true
+			elseif  rawJsonOrError ~= CURL_CONNECT_ERROR
+				and rawJsonOrError ~= CURL_TIMEOUT_ERROR
+				and rawJsonOrError ~= CURL_NOTHING_ERROR
+				and rawJsonOrError ~= CURL_RECEIVE_ERROR then
+				-- silence known common server errors
+				warn("Connection Error", rawJsonOrError)
+			end
+		end
+
+		-- dont waste requests
+		if not success then
+			wait(60/MAX_REQUESTS_PER_MINUTE)
+		end
+	end
+	print("Rofresh ended.")
+end)()
+
+print("Rofresh Studio Plugin running..")]]></ProtectedString>
+			<BinaryString name="Tags">Um9mcmVzaC5Sb2ZyZXNoUGx1Z2lu</BinaryString>
+		</Properties>
+		<Item class="ModuleScript" referent="RBXFCD3ACF935FF4A52B94C78821A4C585D">
+			<Properties>
+				<Content name="LinkedSource"><null></null></Content>
+				<string name="Name">Project</string>
+				<string name="ScriptGuid"></string>
+				<ProtectedString name="Source"><![CDATA[local CollectionService = game:GetService("CollectionService")
+
+-- Project constants
+local TAG_PREFIX = "Rofresh."
+local CONTAINER_NAME = "init"
+
+-- utility functions
+local function existsIn(array, value)
+	for i = 1, #array do
+		if value == array[i] then
+			return true
+		end
+	end
+	return false
+end
+
+local function findFirstChildOfNameAndClass(parent, name, classNames)
+	if typeof(classNames) == "string" then
+		classNames = {classNames}
+	end
+	for _, child in pairs(parent:GetChildren()) do
+		if child.Name == name and existsIn(classNames, child.ClassName) then
+			return child
+		end
+	end
+end
+
+local function findOnPath(path, className)
+	local name = table.remove(path)
+	local parent = game
+	for i = 1, #path do
+		parent = parent:FindFirstChild(path[i])
+		if not parent then
+			return
+		end
+	end
+	return findFirstChildOfNameAndClass(parent, name, className)
+end
+
+-- class definition
+local Project = {}
+Project.instances = {}
+Project.__index = Project
+
+function Project.new(id, tagOverride)
+	local self = setmetatable({}, Project)
+	Project.instances[id] = self
+	self.id = id
+	self.tag = tagOverride or TAG_PREFIX .. id
+	return self
+end
+
+local function getPathStr(object)
+	local pathStr = object.Name .. "." .. object.ClassName
+	local parent = object.Parent
+	while parent and parent ~= game do
+		pathStr = parent.Name .. "." .. pathStr
+		parent = parent.Parent
+	end
+	return pathStr
+end
+
+function Project:initialize(initialPaths)
+	local syncObjects = CollectionService:GetTagged(self.tag)
+	for _, object in pairs(syncObjects) do
+		if not initialPaths[getPathStr(object)] then
+			self:unsync(object)
+		end
+	end
+end
+
+function Project:unsync(object)
+	if CollectionService:HasTag(object, self.tag) then
+		local children = object:GetChildren()
+		if #children > 0 then
+			local folder = Instance.new("Folder")
+			CollectionService:AddTag(object, self.tag)
+			folder.Name = object.Name
+			folder.Parent = object.Parent
+			for _, child in pairs(children) do
+				child.Parent = folder
+			end
+			object:Destroy()
+		else
+			local parent = object.Parent
+			object:Destroy()
+			if parent:IsA("Folder") and #parent:GetChildren() == 0 then
+				self:unsync(parent)
+			end
+		end
+	end
+end
+
+function Project:getScriptObject(path, className, isContainer)
+	local name = table.remove(path)
+	local parent = game
+	for i = 1, #path do
+		local object = parent:FindFirstChild(path[i])
+		if not object then
+			object = Instance.new("Folder", parent)
+			CollectionService:AddTag(object, self.tag)
+			object.Name = path[i]
+		end
+		parent = object
+	end
+
+	local scriptObject = findFirstChildOfNameAndClass(parent, name, className)
+	if not scriptObject then
+		if isContainer then
+			local folder = findFirstChildOfNameAndClass(parent, name, {"Folder", "Script", "LocalScript", "ModuleScript"})
+			if folder then
+				scriptObject = Instance.new(className)
+				CollectionService:AddTag(scriptObject, self.tag)
+				scriptObject.Name = name
+				for _, child in pairs(folder:GetChildren()) do
+					child.Parent = scriptObject
+				end
+				folder:Destroy()
+				scriptObject.Parent = parent
+			else
+				scriptObject = Instance.new(className, parent)
+				CollectionService:AddTag(scriptObject, self.tag)
+				scriptObject.Name = name
+			end
+		else
+			scriptObject = Instance.new(className, parent)
+			CollectionService:AddTag(scriptObject, self.tag)
+			scriptObject.Name = name
+		end
+	end
+
+	return scriptObject
+end
+
+function Project:processChanges(changes)
+	for _, change in pairs(changes) do
+		local doCreate = change.source ~= nil
+		local isContainer = false
+		if change.path[#change.path] == CONTAINER_NAME then
+			table.remove(change.path)
+			isContainer = true
+		end
+		if doCreate then
+			_G.rofresh.debugPrint("ADD", table.concat(change.path, ".") .. "." .. change.type)
+			local scriptObject = self:getScriptObject(change.path, change.type, isContainer)
+			if scriptObject then
+				scriptObject.Source = change.source
+			end
+		else
+			_G.rofresh.debugPrint("REMOVE", table.concat(change.path, ".") .. "." .. change.type)
+			local scriptObject = findOnPath(change.path, change.type)
+			if scriptObject then
+				self:unsync(scriptObject)
+			end
+		end
+	end
+end
+
+function Project:getPathFromScript(script)
+	local path = {}
+	local object = script
+	while object ~= game do
+		table.insert(path, 1, object.Name)
+		object = object.Parent
+	end
+	return path
+end
+
+function Project:getChangeFromScript(script)
+	return {
+		type = script.ClassName,
+		source = script.Source,
+		path = self:getPathFromScript(script)
+	}
+end
+
+return Project]]></ProtectedString>
+				<BinaryString name="Tags">Um9mcmVzaC5Sb2ZyZXNoUGx1Z2lu</BinaryString>
+			</Properties>
+		</Item>
+	</Item>
+</roblox>

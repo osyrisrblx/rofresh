@@ -37,18 +37,6 @@ local function findOnPath(path, className)
 	return findFirstChildOfNameAndClass(parent, name, className)
 end
 
-local states = game.ServerStorage:FindFirstChild("States") or Instance.new("Folder", game.ServerStorage)
-states.Name = "States"
-states:ClearAllChildren()
-local function saveState()
-	local sandbox = game.ServerScriptService:FindFirstChild("Sandbox")
-	if sandbox then
-		local folder = Instance.new("Folder", states)
-		folder.Name = tostring(#states:GetChildren())
-		sandbox:Clone().Parent = folder
-	end
-end
-
 -- class definition
 local Project = {}
 Project.instances = {}
@@ -62,8 +50,23 @@ function Project.new(id, tagOverride)
 	return self
 end
 
+local function getPathStr(object)
+	local pathStr = object.Name .. "." .. object.ClassName
+	local parent = object.Parent
+	while parent and parent ~= game do
+		pathStr = parent.Name .. "." .. pathStr
+		parent = parent.Parent
+	end
+	return pathStr
+end
+
 function Project:initialize(initialPaths)
-	print("initialize", initialPaths)
+	local syncObjects = CollectionService:GetTagged(self.tag)
+	for _, object in pairs(syncObjects) do
+		if not initialPaths[getPathStr(object)] then
+			self:unsync(object)
+		end
+	end
 end
 
 function Project:unsync(object)
@@ -81,13 +84,12 @@ function Project:unsync(object)
 		else
 			local parent = object.Parent
 			object:Destroy()
-			self:unsync(parent)
+			if parent:IsA("Folder") and #parent:GetChildren() == 0 then
+				self:unsync(parent)
+			end
 		end
 	end
 end
-
-
--- [ ReplicatedStorage, FolderA, FolderB, Network, init ]
 
 function Project:getScriptObject(path, className, isContainer)
 	local name = table.remove(path)
@@ -105,7 +107,7 @@ function Project:getScriptObject(path, className, isContainer)
 	local scriptObject = findFirstChildOfNameAndClass(parent, name, className)
 	if not scriptObject then
 		if isContainer then
-			local folder = findFirstChildOfNameAndClass(parent, name, "Folder")
+			local folder = findFirstChildOfNameAndClass(parent, name, {"Folder", "Script", "LocalScript", "ModuleScript"})
 			if folder then
 				scriptObject = Instance.new(className)
 				CollectionService:AddTag(scriptObject, self.tag)
@@ -134,24 +136,23 @@ function Project:processChanges(changes)
 	for _, change in pairs(changes) do
 		local doCreate = change.source ~= nil
 		local isContainer = false
-		if changes.path[#changes.path] == CONTAINER_NAME then
-			table.remove(changes.path)
+		if change.path[#change.path] == CONTAINER_NAME then
+			table.remove(change.path)
 			isContainer = true
 		end
 		if doCreate then
-			print("ADD", table.concat(change.path, "."), change.type)
+			_G.rofresh.debugPrint("ADD", table.concat(change.path, ".") .. "." .. change.type)
 			local scriptObject = self:getScriptObject(change.path, change.type, isContainer)
 			if scriptObject then
 				scriptObject.Source = change.source
 			end
 		else
-			print("REMOVE", table.concat(change.path, "."), change.type)
+			_G.rofresh.debugPrint("REMOVE", table.concat(change.path, ".") .. "." .. change.type)
 			local scriptObject = findOnPath(change.path, change.type)
 			if scriptObject then
 				self:unsync(scriptObject)
 			end
 		end
-		saveState()
 	end
 end
 

@@ -13,7 +13,7 @@ export default class Client {
 
 	constructor(public id: string, public placeId: number) {
 		Client._instances.push(this);
-
+		console.log("client", id, placeId);
 		this.fullSyncToStudio();
 	}
 
@@ -64,7 +64,16 @@ export default class Client {
 			projectQueue = new Map<string, IChange>();
 			this.sendQueue.set(projectId, projectQueue);
 		}
-		changes.forEach(change => projectQueue!.set(change.path.join("/") + "/" + change.type, change));
+
+		changes.forEach(change => {
+			const changePath = [...change.path];
+			if (changePath[changePath.length - 1] === "init") {
+				changePath.pop();
+			}
+			const changeKey = changePath.join(".") + "." + change.type;
+			console.log("changeKey", changeKey);
+			projectQueue!.set(changeKey, change);
+		});
 		this.writeResponse();
 	}
 

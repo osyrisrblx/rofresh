@@ -16,7 +16,7 @@
 				// "../../Nextcloud/Roblox/SwordHeightsRoyal/Lobby",
 				// "../../Nextcloud/Roblox/SwordHeightsRoyal/Arena"
 			],
-			"preLaunchTask": "build",
+			// "preLaunchTask": "build",
 			"outFiles": [
 				"${workspaceFolder}/out/**/*.js"
 			]

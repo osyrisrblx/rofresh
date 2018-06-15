@@ -6,6 +6,7 @@ import Project from "./class/Project";
 import Server from "./class/Server";
 import { IClientPayload } from "./types";
 import { writeJson } from "./utility";
+import { write } from "fs";
 
 const PORT = 8888;
 
@@ -69,12 +70,14 @@ server.get("/", (request, response) => {
 	}
 });
 
-server.post("/", (request, response) => {
-	writeJson(response, {
+server.post("/", (req, res) => {
+	writeJson(res, {
 		hello: "world",
-		url: request.url,
+		url: req.url,
 	});
 });
+
+server.get("/projects", (_, res) => writeJson(res, Project.instances.map(project => project.id)));
 
 server.listen(PORT);
 

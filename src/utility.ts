@@ -3,7 +3,7 @@ import http = require("http");
 import fs = require("mz/fs");
 import path = require("path");
 
-const PLUGIN_FILE_NAME = "RofreshPlugin.rbxm";
+const PLUGIN_FILE_NAME = "RofreshPlugin.rbxmx";
 const ROBLOX_STUDIO_PROCESS_NAME = "RobloxStudioBeta";
 const MAX_FILE_RETRY = 5;
 const FILE_RETRY_DELAY = 10; // ms

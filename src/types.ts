@@ -3,12 +3,17 @@ export interface IRofreshConfig {
 	placeIds?: Array<number>;
 }
 
-export interface IChange {
+interface IUpdate {
 	path: Array<string>;
+	type: string;
+}
+
+export interface IChange extends IUpdate {
 	source: string | null;
 	isRename?: boolean;
-	type?: string;
 }
+
+export interface IRemove extends IUpdate {}
 
 export interface IClientPayload {
 	projectId?: string;
@@ -17,7 +22,8 @@ export interface IClientPayload {
 
 export interface IProjectPayload {
 	projectId: string;
-	changes: Array<IChange>;
+	changes?: Array<IChange>;
+	removes?: Array<IRemove>;
 	tagOverride?: string;
 	initialPaths?: Array<string>;
 }

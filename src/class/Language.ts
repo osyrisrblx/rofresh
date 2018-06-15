@@ -1,6 +1,4 @@
 import child_process = require("mz/child_process");
-import fs = require("mz/fs");
-
 import { getFileContents } from "../utility";
 
 export default class Language {
@@ -27,7 +25,7 @@ export default class Language {
 	}
 
 	public remove() {
-		const index = Language._instances.indexOf(this);
+		const index = Language.instances.indexOf(this);
 		if (index > -1) {
 			Language._instances.splice(index, 1);
 		}

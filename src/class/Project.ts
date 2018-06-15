@@ -69,7 +69,7 @@ export default class Project {
 	}
 
 	public remove() {
-		const index = Project._instances.indexOf(this);
+		const index = Project.instances.indexOf(this);
 		if (index > -1) {
 			Project._instances.splice(index, 1);
 		}
@@ -131,9 +131,13 @@ export default class Project {
 			.replace(/^\.+/, "")
 			.toLowerCase();
 
-		const changePath = path.relative(this.sourceDir, filePath).split(path.sep);
+		let changePath = path.relative(this.sourceDir, filePath).split(path.sep);
 		changePath.pop();
 		changePath.push(path.basename(fullName, "." + fileTypeExt));
+
+		changePath = changePath.reduce((accum, value) => {
+			return accum.concat(...value.split("."));
+		}, new Array<string>());
 
 		const changeType = getFileTypeByExtension(fileTypeExt);
 		if (!changeType) {
@@ -233,16 +237,13 @@ export default class Project {
 							.map(lang => lang.ext)
 							.reduce((accum, ext) => accum || filePath.endsWith(ext), false),
 				})
-				.on("unlink", filePath => {
-					console.log("unlink", filePath);
+				.on("unlink", (filePath: string) => {
 					this.syncRemoveToStudio(filePath);
 				})
-				.on("add", filePath => {
-					console.log("add", filePath);
+				.on("add", (filePath: string, stats?: fs.Stats) => {
 					this.syncChangeToStudio(filePath);
 				})
-				.on("change", filePath => {
-					console.log("change", filePath);
+				.on("change", (filePath: string, stats?: fs.Stats) => {
 					this.syncChangeToStudio(filePath);
 				});
 		}

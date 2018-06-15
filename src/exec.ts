@@ -48,6 +48,7 @@ if (commander.install) {
 		console.log("Rofresh plugin successfully installed!");
 		console.log("Please restart Roblox Studio.");
 	}
+	process.exit();
 } else {
 	rofresh.addProject(DEFAULT_PROJECT_DIR, true);
 	rofresh.start();

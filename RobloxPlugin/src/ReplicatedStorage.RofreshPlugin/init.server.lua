@@ -39,7 +39,9 @@ local function debugPrint(...)
 end
 
 local localTag = HttpService:GenerateGUID(false)
-_G.rofreshTag = localTag
+_G.rofresh = {}
+_G.rofresh.tag = localTag
+_G.rofresh.debugPrint = debugPrint
 
 --* plugin object creation *--
 do
@@ -77,7 +79,7 @@ end
 
 --* main loop *--
 coroutine.wrap(function()
-	while _G.rofreshTag == localTag and wait() do
+	while _G.rofresh.tag == localTag and wait() do
 		-- check game.PlaceId
 		if game.PlaceId == 0 then
 			warn("game.PlaceId cannot be 0")
@@ -85,12 +87,12 @@ coroutine.wrap(function()
 				game:GetPropertyChangedSignal("PlaceId"):Wait()
 			end
 		end
-		if _G.rofreshTag ~= localTag then return end
+		if _G.rofresh.tag ~= localTag then return end
 
 		local success, rawJsonOrError = pcall(function()
 			return HttpService:GetAsync(SERVER_URL, true, HEADERS)
 		end)
-		if _G.rofreshTag ~= localTag then return end
+		if _G.rofresh.tag ~= localTag then return end
 
 		if success then
 			local payloadOrError
@@ -134,7 +136,7 @@ coroutine.wrap(function()
 				while prop ~= "HttpEnabled" do
 					prop = HttpService.Changed:Wait()
 				end
-				if _G.rofreshTag ~= localTag then return end
+				if _G.rofresh.tag ~= localTag then return end
 				-- bypass throttle
 				success = true
 			elseif  rawJsonOrError ~= CURL_CONNECT_ERROR
@@ -151,6 +153,7 @@ coroutine.wrap(function()
 			wait(60/MAX_REQUESTS_PER_MINUTE)
 		end
 	end
+	print("Rofresh ended.")
 end)()
 
 print("Rofresh Studio Plugin running..")
