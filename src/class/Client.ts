@@ -13,7 +13,6 @@ export default class Client {
 
 	constructor(public id: string, public placeId: number) {
 		Client._instances.push(this);
-		console.log("client", id, placeId);
 		this.fullSyncToStudio();
 	}
 
