@@ -1,6 +1,6 @@
 {
 	"name": "rofresh",
-	"version": "1.0.33",
+	"version": "1.0.34",
 	"description": "An automated sync plugin for Roblox Studio",
 	"main": "out/rofresh.js",
 	"typings": "typings/rofresh.d.ts",
@@ -31,7 +31,6 @@
 		"anymatch": "^2.0.0",
 		"chokidar": "^2.0.3",
 		"commander": "^2.15.1",
-		"mz": "^2.7.0",
-		"uuid": "^3.2.1"
+		"mz": "^2.7.0"
 	}
 }
