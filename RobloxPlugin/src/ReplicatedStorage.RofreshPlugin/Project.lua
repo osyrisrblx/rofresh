@@ -1,7 +1,7 @@
 local CollectionService = game:GetService("CollectionService")
 
 -- Project constants
-local TAG_PREFIX = "Rofresh."
+local TAG_PREFIX = ".Rofresh_"
 local CONTAINER_NAME = "init"
 
 -- utility functions
@@ -51,10 +51,10 @@ function Project.new(id, tagOverride)
 end
 
 local function getPathStr(object)
-	local pathStr = object.Name .. "." .. object.ClassName
+	local pathStr = object.Name .. "/" .. object.ClassName
 	local parent = object.Parent
 	while parent and parent ~= game do
-		pathStr = parent.Name .. "." .. pathStr
+		pathStr = parent.Name .. "/" .. pathStr
 		parent = parent.Parent
 	end
 	return pathStr
@@ -144,6 +144,7 @@ function Project:processChanges(changes)
 			_G.rofresh.debugPrint("ADD", table.concat(change.path, ".") .. "." .. change.type)
 			local scriptObject = self:getScriptObject(change.path, change.type, isContainer)
 			if scriptObject then
+				CollectionService:AddTag(scriptObject, self.tag)
 				scriptObject.Source = change.source
 			end
 		else

@@ -1,29 +1,38 @@
-export interface IRofreshConfig {
-	id?: string;
-	placeIds?: Array<number>;
+export interface IPartition {
+	path: string;
+	target: string;
 }
 
-interface IUpdate {
+export interface IRofreshConfig {
+	name: string;
+	placeIds?: Array<number>;
+	allowAnyPlaceId?: boolean;
+	partitions: {
+		[index: string]: IPartition;
+	};
+}
+
+export interface IUpdate {
 	path: Array<string>;
 	type: string;
 }
 
 export interface IChange extends IUpdate {
-	source: string | null;
-	isRename?: boolean;
+	source: string;
 }
 
-export interface IRemove extends IUpdate {}
+export interface IRemove extends IUpdate {
+	source: null;
+}
 
 export interface IClientPayload {
-	projectId?: string;
+	projectName?: string;
 	changes?: Array<IChange>;
 }
 
 export interface IProjectPayload {
-	projectId: string;
-	changes?: Array<IChange>;
-	removes?: Array<IRemove>;
+	projectName: string;
+	changes?: Array<IChange | IRemove>;
 	tagOverride?: string;
 	initialPaths?: Array<string>;
 }

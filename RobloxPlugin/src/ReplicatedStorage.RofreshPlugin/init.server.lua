@@ -62,7 +62,7 @@ do
 		end
 		--[[
 		HttpService:PostAsync(SERVER_URL, HttpService:JSONEncode({
-			projectId = "",
+			projectName = "",
 			changes = changes,
 		}), Enum.HttpContentType.ApplicationJson, false, HEADERS)
 		]]
@@ -76,6 +76,8 @@ do
 		print("debug", DEBUG)
 	end)
 end
+
+local httpEnabled = true
 
 --* main loop *--
 coroutine.wrap(function()
@@ -95,6 +97,11 @@ coroutine.wrap(function()
 		if _G.rofresh.tag ~= localTag then return end
 
 		if success then
+			if not httpEnabled then
+				httpEnabled = true
+				print("HttpEnabled, begin sync..")
+			end
+
 			local payloadOrError
 			success, payloadOrError = pcall(function()
 				return HttpService:JSONDecode(rawJsonOrError)
@@ -104,12 +111,12 @@ coroutine.wrap(function()
 				if not payload.error then
 					for i = 1, #payload do
 						local projectPayload = payload[i]
-						assert(projectPayload.projectId)
+						assert(projectPayload.projectName and projectPayload.projectName ~= "")
 						assert(projectPayload.changes)
 
-						local project = Project.instances[projectPayload.projectId]
+						local project = Project.instances[projectPayload.projectName]
 						if not project then
-							project = Project.new(projectPayload.projectId, projectPayload.tagOverride)
+							project = Project.new(projectPayload.projectName, projectPayload.tagOverride)
 						end
 
 						if projectPayload.initialPaths then
@@ -131,6 +138,7 @@ coroutine.wrap(function()
 		else
 			-- HttpService.HttpEnabled prompt
 			if rawJsonOrError == HTTP_NOT_ENABLED then
+				httpEnabled = false
 				Selection:Set({HttpService})
 				local prop
 				while prop ~= "HttpEnabled" do

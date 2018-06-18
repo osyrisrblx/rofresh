@@ -1,4 +1,3 @@
-import fs = require("mz/fs");
 import path = require("path");
 
 import Client from "./class/Client";
@@ -6,7 +5,6 @@ import Project from "./class/Project";
 import Server from "./class/Server";
 import { IClientPayload } from "./types";
 import { writeJson } from "./utility";
-import { write } from "fs";
 
 const PORT = 8888;
 
@@ -60,7 +58,7 @@ server.get("/", (request, response) => {
 					} catch (e) {}
 					if (clientBody) {
 						const changes = clientBody.changes;
-						const projectId = clientBody.projectId;
+						const projectId = clientBody.projectName;
 						if (changes && changes.length > 0 && projectId) {
 							client.syncChangesFromStudio(projectId, changes);
 						}
@@ -77,7 +75,7 @@ server.post("/", (req, res) => {
 	});
 });
 
-server.get("/projects", (_, res) => writeJson(res, Project.instances.map(project => project.id)));
+server.get("/projects", (_, res) => writeJson(res, Project.instances.map(project => project.name)));
 
 server.listen(PORT);
 

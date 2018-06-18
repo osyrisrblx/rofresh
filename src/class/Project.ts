@@ -3,58 +3,37 @@ import fs = require("mz/fs");
 import path = require("path");
 import util = require("util");
 
-import { IChange, IRofreshConfig } from "../types";
+import { IChange, IPartition, IRemove, IRofreshConfig } from "../types";
 import { getFileContents } from "../utility";
 import Client from "./Client";
-import Language from "./Language";
+import Partition from "./Partition";
 
 const CONFIG_FILE_NAME = "rofresh.json";
-const SOURCE_FOLDER_NAME = "src";
-
-const FILE_TYPE_EXTENSIONS: Array<[string, string]> = [
-	["client", "LocalScript"],
-	["", "ModuleScript"],
-	["server", "Script"],
-];
-
-function getFileTypeByExtension(ext: string) {
-	for (const pair of FILE_TYPE_EXTENSIONS) {
-		if (pair[0] === ext) {
-			return pair[1];
-		}
-	}
-	return null;
-}
-
-/*
-function getFileExtensionByType(type: string) {
-	for (const pair of FILE_TYPE_EXTENSIONS) {
-		if (pair[1] === type) {
-			return pair[0];
-		}
-	}
-	return "";
-}
-*/
+const DEFAULT_PARTITIONS: { [index: string]: IPartition } = {
+	["default"]: {
+		path: "src",
+		target: "",
+	},
+};
 
 export default class Project {
 	private static readonly _instances = new Array<Project>();
 	public static readonly instances: ReadonlyArray<Project> = Project._instances;
 
-	private isRunning = false;
-	private watcher?: chokidar.FSWatcher;
+	private partitions = new Array<Partition>();
 	private configWatcher?: chokidar.FSWatcher;
-	private config: IRofreshConfig = {};
+	private isRunning = false;
+	private allowAnyPlaceId = false;
+	private hasEverBeenConfigured = false;
+	private previousPartitionsJson?: string;
 
 	public readonly placeIds = new Set<number>();
 	public readonly directory: string;
-	public readonly sourceDir: string;
-	public id = "";
+	public name = "";
 
 	constructor(directory: string) {
 		Project._instances.push(this);
 		this.directory = path.resolve(directory);
-		this.sourceDir = path.join(this.directory, SOURCE_FOLDER_NAME);
 		if (!fs.existsSync(this.directory)) {
 			throw new Error(util.format("Could not find project directory! [ %s ]", this.directory));
 		}
@@ -75,23 +54,24 @@ export default class Project {
 		}
 
 		// cleanup
-		if (this.watcher) {
-			this.watcher.close();
-			this.watcher = undefined;
-		}
+		this.stop();
 		if (this.configWatcher) {
 			this.configWatcher.close();
 			this.configWatcher = undefined;
 		}
 	}
 
+	public isValidPlaceId(placeId: number) {
+		return this.allowAnyPlaceId || this.placeIds.has(placeId);
+	}
+
 	private async readConfig(configPath: string) {
 		// reset before attempting to read
-		this.config = {};
+		let config: IRofreshConfig;
 		if (await fs.exists(configPath)) {
 			const fileContents = await getFileContents(configPath);
 			try {
-				this.config = JSON.parse(fileContents.toString());
+				config = JSON.parse(fileContents.toString());
 			} catch (e) {
 				console.log(util.format("Could not parse JSON [ %s ]", configPath));
 				return;
@@ -102,150 +82,125 @@ export default class Project {
 			return;
 		}
 
-		const configPlaceIds = this.config.placeIds;
-		if (configPlaceIds !== undefined) {
-			if (!configPlaceIds.reduce((accum, value) => accum && typeof value === "number", true)) {
+		const configPlaceIds = config.placeIds;
+		const configAllowAnyPlaceId = config.allowAnyPlaceId;
+		if (configAllowAnyPlaceId !== true) {
+			if (
+				configPlaceIds === undefined ||
+				!configPlaceIds.reduce((accum, value) => accum && typeof value === "number", true)
+			) {
 				// TODO: emit error
 				console.log(util.format("Invalid configuration: placeIds [ %s ]", configPath));
 				return;
 			}
+		}
 
+		const configName = config.name;
+		if (configName === undefined || typeof configName !== "string") {
+			console.log(util.format("Invalid configuration: name"));
+			return;
+		}
+
+		const configPartitions = config.partitions || DEFAULT_PARTITIONS;
+		let amtPartitions = 0;
+		for (const key in configPartitions) {
+			if (
+				typeof key !== "string" ||
+				configPartitions[key] === undefined ||
+				configPartitions[key].path === undefined ||
+				configPartitions[key].target === undefined ||
+				typeof configPartitions[key].path !== "string" ||
+				typeof configPartitions[key].target !== "string"
+			) {
+				console.log(util.format("Invalid configuration: partitions"));
+				return;
+			} else {
+				amtPartitions++;
+			}
+		}
+
+		if (amtPartitions === 0) {
+			console.log(util.format("Invalid configuration: need atleast one partition"));
+			return;
+		}
+
+		// configuration validated
+
+		this.name = configName;
+		this.allowAnyPlaceId = configAllowAnyPlaceId === true;
+		if (!this.allowAnyPlaceId) {
 			[...this.placeIds]
-				.filter(placeId => configPlaceIds.indexOf(placeId) === -1)
+				.filter(placeId => configPlaceIds!.indexOf(placeId) === -1)
 				.forEach(placeId => this.placeIds.delete(placeId));
-			configPlaceIds
+			configPlaceIds!
 				.filter(placeId => !this.placeIds.has(placeId))
 				.forEach(placeId => this.placeIds.add(placeId));
 		}
 
-		const projectId = this.config.id;
-		if (projectId !== undefined) {
-			this.id = projectId;
-		}
-	}
-
-	private async getChangeBaseFromFile(filePath: string): Promise<IChange> {
-		const fullName = path.basename(filePath, path.extname(filePath));
-		const fileTypeExt = path
-			.extname(fullName)
-			.replace(/^\.+/, "")
-			.toLowerCase();
-
-		let changePath = path.relative(this.sourceDir, filePath).split(path.sep);
-		changePath.pop();
-		changePath.push(path.basename(fullName, "." + fileTypeExt));
-
-		changePath = changePath.reduce((accum, value) => {
-			return accum.concat(...value.split("."));
-		}, new Array<string>());
-
-		const changeType = getFileTypeByExtension(fileTypeExt);
-		if (!changeType) {
-			throw new Error("Could not determine file type! [ " + filePath + " ]");
-		}
-
-		return {
-			path: changePath,
-			source: null,
-			type: changeType,
-		};
-	}
-
-	private async getRemoveFromFile(filePath: string): Promise<IChange> {
-		const changeBase = await this.getChangeBaseFromFile(filePath);
-		return {
-			path: changeBase.path,
-			source: null,
-			type: changeBase.type,
-		};
-	}
-
-	private async getChangeFromFile(filePath: string): Promise<IChange> {
-		const changeBase = await this.getChangeBaseFromFile(filePath);
-
-		const ext = path.extname(filePath);
-
-		let language: Language | undefined;
-		for (const lang of Language.instances) {
-			if (ext === lang.ext) {
-				language = lang;
+		const partitionsJson = JSON.stringify(configPartitions);
+		if (this.previousPartitionsJson !== partitionsJson) {
+			this.previousPartitionsJson = partitionsJson;
+			const wasRunning = this.isRunning;
+			if (wasRunning) {
+				this.stop();
+			}
+			this.partitions.splice(0, this.partitions.length);
+			for (const partitionName in configPartitions) {
+				if (configPartitions[partitionName]) {
+					const partitionPath = path.join(this.directory, configPartitions[partitionName].path);
+					if (await fs.exists(partitionPath)) {
+						const partition = new Partition(
+							this,
+							partitionName,
+							partitionPath,
+							configPartitions[partitionName].target,
+						);
+						this.partitions.push(partition);
+						if (this.isRunning) {
+							partition.start();
+						}
+					}
+				}
+			}
+			if (wasRunning) {
+				this.start();
 			}
 		}
 
-		if (!language) {
-			throw new Error("Could not find applicable Language for filePath! [ " + filePath + " ]");
-		}
-
-		return {
-			path: changeBase.path,
-			source: (await language.getSource(filePath)).toString(),
-			type: changeBase.type,
-		};
-	}
-
-	private async getChangesFromDir(dir = this.directory, changes: Array<IChange> = new Array<IChange>()) {
-		for (const fileName of await fs.readdir(dir)) {
-			const filePath = path.resolve(dir, fileName);
-			if ((await fs.stat(filePath)).isDirectory()) {
-				await this.getChangesFromDir(filePath, changes);
-			} else if (!filePath.match(Language.ignoreRegExp)) {
-				changes.push(await this.getChangeFromFile(filePath));
-			}
-		}
-		return changes;
+		this.hasEverBeenConfigured = true;
 	}
 
 	public async fullSyncToStudio(client: Client) {
-		client.syncToStudio(this.id, await this.getChangesFromDir());
-	}
-
-	private async distributeChangeToStudio(change: IChange) {
-		Client.instances
-			.filter(client => this.placeIds.has(client.placeId))
-			.forEach(client => client.syncToStudio(this.id, [change]));
-	}
-
-	public async syncChangeToStudio(filePath: string) {
-		this.distributeChangeToStudio(await this.getChangeFromFile(filePath));
-	}
-
-	public async syncRemoveToStudio(filePath: string) {
-		this.distributeChangeToStudio(await this.getRemoveFromFile(filePath));
-	}
-
-	public async syncChangeFromStudio(change: IChange) {
-		if (change.source === null) {
-		} else {
+		if (!this.hasEverBeenConfigured) {
+			setTimeout(() => this.fullSyncToStudio(client), 10);
+			return;
 		}
+		console.log("fullSyncToStudio");
+		const changes = new Array<IChange>();
+		for (const partition of this.partitions) {
+			await partition.getChangesFromDir(partition.directory, changes);
+		}
+		client.syncToStudio(this.name, changes);
 	}
 
-	public async syncChangesFromStudio(changes: Array<IChange>) {
-		changes.forEach(change => this.syncChangeFromStudio(change));
+	public async distributeChangeToStudio(change: IChange | IRemove) {
+		Client.instances
+			.filter(client => this.isValidPlaceId(client.placeId))
+			.forEach(client => client.syncToStudio(this.name, [change]));
 	}
+
+	public async syncChangeFromStudio(change: IChange) {}
+	public async syncChangesFromStudio(changes: Array<IChange>) {}
 
 	public start() {
+		if (!this.hasEverBeenConfigured) {
+			setTimeout(() => this.start(), 10);
+			return;
+		}
 		if (!this.isRunning) {
 			console.log("watch", this.directory, [...this.placeIds].toString());
 			this.isRunning = true;
-			this.watcher = chokidar
-				.watch(this.sourceDir, {
-					ignoreInitial: true,
-					ignored: (filePath: string, stat?: fs.Stats) =>
-						stat &&
-						!stat.isDirectory() &&
-						!Language.instances
-							.map(lang => lang.ext)
-							.reduce((accum, ext) => accum || filePath.endsWith(ext), false),
-				})
-				.on("unlink", (filePath: string) => {
-					this.syncRemoveToStudio(filePath);
-				})
-				.on("add", (filePath: string, stats?: fs.Stats) => {
-					this.syncChangeToStudio(filePath);
-				})
-				.on("change", (filePath: string, stats?: fs.Stats) => {
-					this.syncChangeToStudio(filePath);
-				});
+			this.partitions.forEach(partition => partition.start());
 		}
 	}
 
@@ -253,10 +208,7 @@ export default class Project {
 		if (this.isRunning) {
 			console.log("stop watch", this.directory, [...this.placeIds].toString());
 			this.isRunning = false;
-			if (this.watcher) {
-				this.watcher.close();
-				this.watcher = undefined;
-			}
+			this.partitions.forEach(partition => partition.stop());
 		}
 	}
 }

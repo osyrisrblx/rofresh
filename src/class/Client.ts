@@ -1,6 +1,6 @@
 import http = require("http");
 
-import { IChange, IProjectPayload } from "../types";
+import { IChange, IProjectPayload, IRemove } from "../types";
 import { writeJson } from "../utility";
 import Project from "./Project";
 
@@ -8,7 +8,7 @@ export default class Client {
 	private static readonly _instances = new Array<Client>();
 	public static readonly instances: ReadonlyArray<Client> = Client._instances;
 
-	private sendQueue = new Map<string, Map<string, IChange>>();
+	private sendQueue = new Map<string, Map<string, IChange | IRemove>>();
 	private response?: http.ServerResponse;
 
 	constructor(public id: string, public placeId: number) {
@@ -18,7 +18,7 @@ export default class Client {
 
 	public fullSyncToStudio() {
 		Project.instances
-			.filter(project => project.placeIds.has(this.placeId))
+			.filter(project => project.isValidPlaceId(this.placeId))
 			.forEach(project => project.fullSyncToStudio(this));
 	}
 
@@ -33,14 +33,14 @@ export default class Client {
 	public writeResponse() {
 		if (this.response) {
 			const payload = new Array<IProjectPayload>();
-			this.sendQueue.forEach((projectQueue, projectId) => {
-				const changes = new Array<IChange>();
+			this.sendQueue.forEach((projectQueue, projectName) => {
+				const changes = new Array<IChange | IRemove>();
 				projectQueue.forEach((change, path) => {
 					changes.push(change);
 					projectQueue.delete(path);
 				});
 				if (changes.length > 0) {
-					payload.push({ projectId, changes });
+					payload.push({ projectName, changes });
 				}
 			});
 			if (payload.length > 0) {
@@ -57,11 +57,11 @@ export default class Client {
 		this.writeResponse();
 	}
 
-	public async syncToStudio(projectId: string, changes: Array<IChange>) {
-		let projectQueue = this.sendQueue.get(projectId);
+	public async syncToStudio(projectName: string, changes: Array<IChange | IRemove>) {
+		let projectQueue = this.sendQueue.get(projectName);
 		if (!projectQueue) {
 			projectQueue = new Map<string, IChange>();
-			this.sendQueue.set(projectId, projectQueue);
+			this.sendQueue.set(projectName, projectQueue);
 		}
 
 		changes.forEach(change => {
@@ -69,17 +69,17 @@ export default class Client {
 			if (changePath[changePath.length - 1] === "init") {
 				changePath.pop();
 			}
-			const changeKey = changePath.join(".") + "." + change.type;
+			const changeKey = changePath.join("/") + "/" + change.type;
 			console.log("changeKey", changeKey);
 			projectQueue!.set(changeKey, change);
 		});
 		this.writeResponse();
 	}
 
-	public async syncChangesFromStudio(projectId: string, changes: Array<IChange>) {
-		console.log("syncChangesFromStudio", projectId, changes.length);
+	public async syncChangesFromStudio(projectName: string, changes: Array<IChange>) {
+		console.log("syncChangesFromStudio", projectName, changes.length);
 		Project.instances
-			.filter(project => project.id === projectId)
+			.filter(project => project.name === projectName)
 			.forEach(project => project.syncChangesFromStudio(changes));
 	}
 

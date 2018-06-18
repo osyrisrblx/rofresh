@@ -1,4 +1,15 @@
 {
-	"id": "RofreshPlugin",
-	"placeIds": [95206881]
+	"name": "RofreshPlugin",
+	"allowAnyPlaceId": true,
+	"placeIds": [1234],
+	"partitions": {
+		"test": {
+			"path": "testPartition",
+			"target": "ServerScriptService.ThingA.ThingB"
+		},
+		"src": {
+			"path": "src",
+			"target": ""
+		}
+	}
 }
