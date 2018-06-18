@@ -1,6 +1,7 @@
 .vscode
 node_modules
 src
+RobloxPlugin
 out/**/*.js.map
 tsconfig.json
 .gitattributes
