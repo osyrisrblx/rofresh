@@ -1,0 +1,10 @@
+HttpResponse.spec.lua
+
+allowAnyPlaceId
+
+partitions
+src:game
+
+id -> name
+
+.txt?
