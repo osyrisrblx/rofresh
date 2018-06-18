@@ -1,3 +1,5 @@
+-- Rofresh Studio Plugin
+
 -- services
 local HttpService = game:GetService("HttpService")
 local Selection = game:GetService("Selection")

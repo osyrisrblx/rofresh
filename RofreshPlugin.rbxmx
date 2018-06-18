@@ -1,13 +1,15 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Script" referent="RBXDA7DAC7575584F9AA5128649B7C52E59">
+	<Item class="Script" referent="RBXA114E1B928684EAA8783355C8900F372">
 		<Properties>
 			<bool name="Disabled">false</bool>
 			<Content name="LinkedSource"><null></null></Content>
 			<string name="Name">RofreshPlugin</string>
-			<string name="ScriptGuid"></string>
-			<ProtectedString name="Source"><![CDATA[-- services
+			<string name="ScriptGuid">{2E53A380-F9D3-42C6-9570-FC51DE92348C}</string>
+			<ProtectedString name="Source"><![CDATA[-- Rofresh Studio Plugin
+
+-- services
 local HttpService = game:GetService("HttpService")
 local Selection = game:GetService("Selection")
 
@@ -71,7 +73,7 @@ do
 		end
 		--[[
 		HttpService:PostAsync(SERVER_URL, HttpService:JSONEncode({
-			projectId = "",
+			projectName = "",
 			changes = changes,
 		}), Enum.HttpContentType.ApplicationJson, false, HEADERS)
 		]]
@@ -85,6 +87,8 @@ do
 		print("debug", DEBUG)
 	end)
 end
+
+local httpEnabled = true
 
 --* main loop *--
 coroutine.wrap(function()
@@ -104,6 +108,11 @@ coroutine.wrap(function()
 		if _G.rofresh.tag ~= localTag then return end
 
 		if success then
+			if not httpEnabled then
+				httpEnabled = true
+				print("HttpEnabled, begin sync..")
+			end
+
 			local payloadOrError
 			success, payloadOrError = pcall(function()
 				return HttpService:JSONDecode(rawJsonOrError)
@@ -113,12 +122,12 @@ coroutine.wrap(function()
 				if not payload.error then
 					for i = 1, #payload do
 						local projectPayload = payload[i]
-						assert(projectPayload.projectId)
+						assert(projectPayload.projectName and projectPayload.projectName ~= "")
 						assert(projectPayload.changes)
 
-						local project = Project.instances[projectPayload.projectId]
+						local project = Project.instances[projectPayload.projectName]
 						if not project then
-							project = Project.new(projectPayload.projectId, projectPayload.tagOverride)
+							project = Project.new(projectPayload.projectName, projectPayload.tagOverride)
 						end
 
 						if projectPayload.initialPaths then
@@ -140,6 +149,7 @@ coroutine.wrap(function()
 		else
 			-- HttpService.HttpEnabled prompt
 			if rawJsonOrError == HTTP_NOT_ENABLED then
+				httpEnabled = false
 				Selection:Set({HttpService})
 				local prop
 				while prop ~= "HttpEnabled" do
@@ -166,17 +176,17 @@ coroutine.wrap(function()
 end)()
 
 print("Rofresh Studio Plugin running..")]]></ProtectedString>
-			<BinaryString name="Tags">Um9mcmVzaC5Sb2ZyZXNoUGx1Z2lu</BinaryString>
+			<BinaryString name="Tags">LlJvZnJlc2hfUm9mcmVzaFBsdWdpbg==</BinaryString>
 		</Properties>
-		<Item class="ModuleScript" referent="RBXFCD3ACF935FF4A52B94C78821A4C585D">
+		<Item class="ModuleScript" referent="RBXDF90C40463314334B330C00FE6943435">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<string name="Name">Project</string>
-				<string name="ScriptGuid"></string>
+				<string name="ScriptGuid">{E6C2736E-EA47-4F50-AFB0-94F8158F21D0}</string>
 				<ProtectedString name="Source"><![CDATA[local CollectionService = game:GetService("CollectionService")
 
 -- Project constants
-local TAG_PREFIX = "Rofresh."
+local TAG_PREFIX = ".Rofresh_"
 local CONTAINER_NAME = "init"
 
 -- utility functions
@@ -226,10 +236,10 @@ function Project.new(id, tagOverride)
 end
 
 local function getPathStr(object)
-	local pathStr = object.Name .. "." .. object.ClassName
+	local pathStr = object.Name .. "/" .. object.ClassName
 	local parent = object.Parent
 	while parent and parent ~= game do
-		pathStr = parent.Name .. "." .. pathStr
+		pathStr = parent.Name .. "/" .. pathStr
 		parent = parent.Parent
 	end
 	return pathStr
@@ -319,6 +329,7 @@ function Project:processChanges(changes)
 			_G.rofresh.debugPrint("ADD", table.concat(change.path, ".") .. "." .. change.type)
 			local scriptObject = self:getScriptObject(change.path, change.type, isContainer)
 			if scriptObject then
+				CollectionService:AddTag(scriptObject, self.tag)
 				scriptObject.Source = change.source
 			end
 		else
@@ -350,7 +361,7 @@ function Project:getChangeFromScript(script)
 end
 
 return Project]]></ProtectedString>
-				<BinaryString name="Tags">Um9mcmVzaC5Sb2ZyZXNoUGx1Z2lu</BinaryString>
+				<BinaryString name="Tags">LlJvZnJlc2hfUm9mcmVzaFBsdWdpbg==</BinaryString>
 			</Properties>
 		</Item>
 	</Item>

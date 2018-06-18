@@ -69,15 +69,12 @@ export default class Client {
 			if (changePath[changePath.length - 1] === "init") {
 				changePath.pop();
 			}
-			const changeKey = changePath.join("/") + "/" + change.type;
-			console.log("changeKey", changeKey);
-			projectQueue!.set(changeKey, change);
+			projectQueue!.set(changePath.join("/") + "/" + change.type, change);
 		});
 		this.writeResponse();
 	}
 
 	public async syncChangesFromStudio(projectName: string, changes: Array<IChange>) {
-		console.log("syncChangesFromStudio", projectName, changes.length);
 		Project.instances
 			.filter(project => project.name === projectName)
 			.forEach(project => project.syncChangesFromStudio(changes));

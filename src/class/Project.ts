@@ -175,7 +175,6 @@ export default class Project {
 			setTimeout(() => this.fullSyncToStudio(client), 10);
 			return;
 		}
-		console.log("fullSyncToStudio");
 		const changes = new Array<IChange>();
 		for (const partition of this.partitions) {
 			await partition.getChangesFromDir(partition.directory, changes);

@@ -38,6 +38,7 @@ export default class Partition {
 	private isRunning = false;
 	private watcher?: chokidar.FSWatcher;
 	private rbxPath: Array<string>;
+	private isSingleFile = false;
 
 	constructor(
 		private project: Project,
@@ -46,6 +47,11 @@ export default class Partition {
 		rbxTarget: string,
 	) {
 		this.rbxPath = rbxTarget.split(RBX_SEPARATOR);
+		fs.stat(directory).then(stats => {
+			if (stats.isFile()) {
+				this.isSingleFile = true;
+			}
+		});
 	}
 
 	public async getChangesFromDir(dir: string, changes: Array<IChange>) {
@@ -82,7 +88,10 @@ export default class Partition {
 			changeType = "ModuleScript";
 			fileName += "." + fileTypeExt;
 		}
-		changePath.push(fileName);
+
+		if (!this.isSingleFile) {
+			changePath.push(fileName);
+		}
 
 		return {
 			path: changePath,
