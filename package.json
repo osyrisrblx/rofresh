@@ -1,6 +1,6 @@
 {
 	"name": "rofresh",
-	"version": "1.0.35",
+	"version": "1.0.36",
 	"description": "An automated sync plugin for Roblox Studio",
 	"main": "out/rofresh.js",
 	"typings": "typings/rofresh.d.ts",
@@ -32,7 +32,7 @@
 		"@types/npm": "^2.0.29",
 		"@types/uuid": "^3.4.3",
 		"tslint": "^5.10.0",
-		"typescript": "^3.0.0-dev.20180608"
+		"typescript": "^2.9.0"
 	},
 	"dependencies": {
 		"anymatch": "^2.0.0",
