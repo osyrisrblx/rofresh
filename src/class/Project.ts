@@ -3,14 +3,14 @@ import fs = require("mz/fs");
 import path = require("path");
 import util = require("util");
 
-import { IChange, IPartition, IRemove, IRofreshConfig } from "../types";
+import { IChange, IRemove, IRofreshConfig } from "../types";
 import { getFileContents } from "../utility";
 import Client from "./Client";
 import Partition from "./Partition";
 
 const CONFIG_FILE_NAME = "rofresh.json";
-const DEFAULT_PARTITIONS: { [index: string]: IPartition } = {
-	["default"]: {
+const DEFAULT_PARTITIONS = {
+	default: {
 		path: "src",
 		target: "",
 	},
