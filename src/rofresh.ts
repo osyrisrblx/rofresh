@@ -2,11 +2,11 @@ import http = require("http");
 import path = require("path");
 
 import Client from "./class/Client";
+import Language from "./class/Language";
 import Project from "./class/Project";
 import Server from "./class/Server";
 import { ClientPayload } from "./types";
-import { writeJson } from "./utility";
-import Language from "./class/Language";
+import { writeJson, writeJsonDebug } from "./utility";
 
 const PORT = 8888;
 
@@ -79,7 +79,7 @@ server.get("/projects", (req, res) => {
 });
 
 server.get("/debug", (req, res) => {
-	writeJson(res, {
+	writeJsonDebug(res, {
 		clients: Client.instances,
 		languages: Language.instances,
 		projects: Project.instances,

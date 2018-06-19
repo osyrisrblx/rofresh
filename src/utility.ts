@@ -27,9 +27,15 @@ function decircularJson(object: any) {
 	return result;
 }
 
-export function writeJson(res: http.ServerResponse, object: any) {
+export function writeJsonDebug(res: http.ServerResponse, object: any) {
 	res.setHeader("content-type", "application/json");
 	res.write(decircularJson(object));
+	res.end();
+}
+
+export function writeJson(res: http.ServerResponse, object: any) {
+	res.setHeader("content-type", "application/json");
+	res.write(JSON.stringify(object));
 	res.end();
 }
 
