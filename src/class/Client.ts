@@ -1,6 +1,6 @@
 import http = require("http");
 
-import { IChange, IProjectPayload, IRemove } from "../types";
+import { Change, ProjectPayload, Remove } from "../types";
 import { writeJson } from "../utility";
 import Project from "./Project";
 
@@ -8,7 +8,7 @@ export default class Client {
 	private static readonly _instances = new Array<Client>();
 	public static readonly instances: ReadonlyArray<Client> = Client._instances;
 
-	private sendQueue = new Map<string, Map<string, IChange | IRemove>>();
+	private sendQueue = new Map<string, Map<string, Change | Remove>>();
 	private response?: http.ServerResponse;
 
 	constructor(public id: string, public placeId: number) {
@@ -17,9 +17,9 @@ export default class Client {
 	}
 
 	public fullSyncToStudio() {
-		Project.instances
-			.filter(project => project.isValidPlaceId(this.placeId))
-			.forEach(project => project.fullSyncToStudio(this));
+		Project.instances.filter(project => project.isValidPlaceId(this.placeId)).forEach(project => {
+			project.fullSyncToStudio(this);
+		});
 	}
 
 	public remove() {
@@ -32,9 +32,9 @@ export default class Client {
 
 	public writeResponse() {
 		if (this.response) {
-			const payload = new Array<IProjectPayload>();
+			const payload = new Array<ProjectPayload>();
 			this.sendQueue.forEach((projectQueue, projectName) => {
-				const changes = new Array<IChange | IRemove>();
+				const changes = new Array<Change | Remove>();
 				projectQueue.forEach((change, path) => {
 					changes.push(change);
 					projectQueue.delete(path);
@@ -57,10 +57,10 @@ export default class Client {
 		this.writeResponse();
 	}
 
-	public async syncToStudio(projectName: string, changes: Array<IChange | IRemove>) {
+	public async syncToStudio(projectName: string, changes: Array<Change | Remove>) {
 		let projectQueue = this.sendQueue.get(projectName);
 		if (!projectQueue) {
-			projectQueue = new Map<string, IChange>();
+			projectQueue = new Map<string, Change>();
 			this.sendQueue.set(projectName, projectQueue);
 		}
 
@@ -74,7 +74,7 @@ export default class Client {
 		this.writeResponse();
 	}
 
-	public async syncChangesFromStudio(projectName: string, changes: Array<IChange>) {
+	public async syncChangesFromStudio(projectName: string, changes: Array<Change>) {
 		Project.instances
 			.filter(project => project.name === projectName)
 			.forEach(project => project.syncChangesFromStudio(changes));

@@ -2,6 +2,7 @@
 
 -- services
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
 
 -- imports
@@ -16,7 +17,7 @@ local OUTPUT_PREFIX = "[Rofresh]"
 -- static constants
 local URL_TEMPLATE = "http://localhost:%d"
 local SERVER_URL = string.format(URL_TEMPLATE, PORT)
-local HEADERS = { ["client-id"] = HttpService:GenerateGUID(false) }
+local HEADERS = { ["client-id"] = string.gsub(HttpService:GenerateGUID(false), "-", "") }
 
 -- error constants
 local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game settings"
@@ -40,9 +41,9 @@ local function debugPrint(...)
 	end
 end
 
-local localTag = HttpService:GenerateGUID(false)
+local pluginId = string.gsub(HttpService:GenerateGUID(false), "-", "")
 _G.rofresh = {}
-_G.rofresh.tag = localTag
+_G.rofresh.pluginId = pluginId
 _G.rofresh.debugPrint = debugPrint
 
 --* plugin object creation *--
@@ -81,22 +82,35 @@ end
 
 local httpEnabled = true
 
+local jobId
+
+local function isJobValid(myJobId)
+	return myJobId == jobId and _G.rofresh.pluginId == pluginId
+end
+
+
 --* main loop *--
 coroutine.wrap(function()
-	while _G.rofresh.tag == localTag and wait() do
-		-- check game.PlaceId
-		if game.PlaceId == 0 then
-			warn("game.PlaceId cannot be 0")
-			while game.PlaceId == 0 do
-				game:GetPropertyChangedSignal("PlaceId"):Wait()
-			end
-		end
-		if _G.rofresh.tag ~= localTag then return end
+	while RunService.Heartbeat:Wait() and _G.rofresh.pluginId == pluginId do
+		local myJobId = {}
+		jobId = myJobId
 
-		local success, rawJsonOrError = pcall(function()
-			return HttpService:GetAsync(SERVER_URL, true, HEADERS)
-		end)
-		if _G.rofresh.tag ~= localTag then return end
+		_G.rofresh.debugPrint("Sending request..")
+		local success, rawJsonOrError
+		local isFinished = false
+		coroutine.wrap(function()
+			success, rawJsonOrError = pcall(function()
+				return HttpService:GetAsync(SERVER_URL, true, HEADERS)
+			end)
+			isFinished = true
+		end)()
+		while isJobValid(myJobId) and not isFinished do
+			RunService.Heartbeat:Wait()
+		end
+		if not isJobValid(myJobId) then
+			return
+		end
+		_G.rofresh.debugPrint("Recieved response!")
 
 		if success then
 			if not httpEnabled then
@@ -146,7 +160,6 @@ coroutine.wrap(function()
 				while prop ~= "HttpEnabled" do
 					prop = HttpService.Changed:Wait()
 				end
-				if _G.rofresh.tag ~= localTag then return end
 				-- bypass throttle
 				success = true
 			elseif  rawJsonOrError ~= CURL_CONNECT_ERROR
@@ -165,5 +178,14 @@ coroutine.wrap(function()
 	end
 	print("Rofresh ended.")
 end)()
+
+local placeId = game.PlaceId
+game:GetPropertyChangedSignal("PlaceId"):Connect(function()
+	if placeId ~= game.PlaceId then
+		_G.rofresh.debugPrint("PlaceId changed, restart request")
+		placeId = game.PlaceId
+		jobId = nil
+	end
+end)
 
 print("Rofresh Studio Plugin running..")

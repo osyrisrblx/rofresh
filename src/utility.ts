@@ -8,9 +8,28 @@ const ROBLOX_STUDIO_PROCESS_NAME = "RobloxStudioBeta";
 const MAX_FILE_RETRY = 5;
 const FILE_RETRY_DELAY = 10; // ms
 
+function decircularJson(object: any) {
+	let cache: Array<any> | null = new Array<any>();
+	const result = JSON.stringify(object, (key, value) => {
+		if (typeof value === "object" && value !== null) {
+			if (cache!.indexOf(value) !== -1) {
+				try {
+					return JSON.parse(JSON.stringify(value));
+				} catch (error) {
+					return;
+				}
+			}
+			cache!.push(value);
+		}
+		return value;
+	});
+	cache = null;
+	return result;
+}
+
 export function writeJson(res: http.ServerResponse, object: any) {
 	res.setHeader("content-type", "application/json");
-	res.write(JSON.stringify(object));
+	res.write(decircularJson(object));
 	res.end();
 }
 

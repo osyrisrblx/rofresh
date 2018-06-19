@@ -2,7 +2,7 @@ import chokidar = require("chokidar");
 import fs = require("mz/fs");
 import path = require("path");
 
-import { IChange, IRemove, IUpdate } from "../types";
+import { Change, Remove, Update } from "../types";
 import { getFileContents } from "../utility";
 import Language from "./Language";
 import Project from "./Project";
@@ -54,19 +54,23 @@ export default class Partition {
 		});
 	}
 
-	public async getChangesFromDir(dir: string, changes: Array<IChange>) {
-		for (const fileName of await fs.readdir(dir)) {
-			const filePath = path.resolve(dir, fileName);
-			if ((await fs.stat(filePath)).isDirectory()) {
-				await this.getChangesFromDir(filePath, changes);
-			} else if (!filePath.match(Language.ignoreRegExp)) {
-				changes.push(await this.getChangeFromFile(filePath));
+	public async getChangesFromDir(dir: string, changes: Array<Change>) {
+		if (this.isSingleFile) {
+			changes.push(await this.getChangeFromFile(dir));
+		} else {
+			for (const fileName of await fs.readdir(dir)) {
+				const filePath = path.resolve(dir, fileName);
+				if ((await fs.stat(filePath)).isDirectory()) {
+					await this.getChangesFromDir(filePath, changes);
+				} else if (!filePath.match(Language.ignoreRegExp)) {
+					changes.push(await this.getChangeFromFile(filePath));
+				}
 			}
 		}
 		return changes;
 	}
 
-	private async getUpdateFromFile(filePath: string): Promise<IUpdate> {
+	private async getUpdateFromFile(filePath: string): Promise<Update> {
 		const fullName = path.basename(filePath, path.extname(filePath));
 		const fileTypeExt = path
 			.extname(fullName)
@@ -99,7 +103,7 @@ export default class Partition {
 		};
 	}
 
-	private async getRemoveFromFile(filePath: string): Promise<IRemove> {
+	private async getRemoveFromFile(filePath: string): Promise<Remove> {
 		const update = await this.getUpdateFromFile(filePath);
 		return {
 			path: update.path,
@@ -108,7 +112,7 @@ export default class Partition {
 		};
 	}
 
-	private async getChangeFromFile(filePath: string): Promise<IChange> {
+	private async getChangeFromFile(filePath: string): Promise<Change> {
 		const update = await this.getUpdateFromFile(filePath);
 		const ext = path.extname(filePath);
 

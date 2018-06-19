@@ -3,7 +3,7 @@ import fs = require("mz/fs");
 import path = require("path");
 import util = require("util");
 
-import { IChange, IRemove, IRofreshConfig } from "../types";
+import { Change, InitialPaths, Remove, RofreshConfig } from "../types";
 import { getFileContents } from "../utility";
 import Client from "./Client";
 import Partition from "./Partition";
@@ -27,7 +27,9 @@ export default class Project {
 	private hasEverBeenConfigured = false;
 	private previousPartitionsJson?: string;
 
-	public readonly placeIds = new Set<number>();
+	private _placeIds = new Set<number>();
+	public readonly placeIds: ReadonlySet<number> = this._placeIds;
+
 	public readonly directory: string;
 	public name = "";
 
@@ -67,7 +69,7 @@ export default class Project {
 
 	private async readConfig(configPath: string) {
 		// reset before attempting to read
-		let config: IRofreshConfig;
+		let config: RofreshConfig;
 		if (await fs.exists(configPath)) {
 			const fileContents = await getFileContents(configPath);
 			try {
@@ -129,12 +131,7 @@ export default class Project {
 		this.name = configName;
 		this.allowAnyPlaceId = configAllowAnyPlaceId === true;
 		if (!this.allowAnyPlaceId) {
-			[...this.placeIds]
-				.filter(placeId => configPlaceIds!.indexOf(placeId) === -1)
-				.forEach(placeId => this.placeIds.delete(placeId));
-			configPlaceIds!
-				.filter(placeId => !this.placeIds.has(placeId))
-				.forEach(placeId => this.placeIds.add(placeId));
+			this._placeIds = new Set<number>(configPlaceIds);
 		}
 
 		const partitionsJson = JSON.stringify(configPartitions);
@@ -170,26 +167,30 @@ export default class Project {
 		this.hasEverBeenConfigured = true;
 	}
 
+	private async getInitialPaths(): Promise<InitialPaths> {
+		return {};
+	}
+
 	public async fullSyncToStudio(client: Client) {
 		if (!this.hasEverBeenConfigured) {
 			setTimeout(() => this.fullSyncToStudio(client), 10);
 			return;
 		}
-		const changes = new Array<IChange>();
+		const changes = new Array<Change>();
 		for (const partition of this.partitions) {
 			await partition.getChangesFromDir(partition.directory, changes);
 		}
 		client.syncToStudio(this.name, changes);
 	}
 
-	public async distributeChangeToStudio(change: IChange | IRemove) {
+	public async distributeChangeToStudio(change: Change | Remove) {
 		Client.instances
 			.filter(client => this.isValidPlaceId(client.placeId))
 			.forEach(client => client.syncToStudio(this.name, [change]));
 	}
 
-	public async syncChangeFromStudio(change: IChange) {}
-	public async syncChangesFromStudio(changes: Array<IChange>) {}
+	public async syncChangeFromStudio(change: Change) {}
+	public async syncChangesFromStudio(changes: Array<Change>) {}
 
 	public start() {
 		if (!this.hasEverBeenConfigured) {
@@ -200,6 +201,10 @@ export default class Project {
 			console.log("watch", this.directory, [...this.placeIds].toString());
 			this.isRunning = true;
 			this.partitions.forEach(partition => partition.start());
+			Client.instances.filter(client => this.isValidPlaceId(client.placeId)).forEach(client => {
+				console.log("full sync (start)", client.id);
+				this.fullSyncToStudio(client);
+			});
 		}
 	}
 

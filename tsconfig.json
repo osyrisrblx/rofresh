@@ -12,7 +12,8 @@
 		],
 		"sourceMap": true,
 		"noFallthroughCasesInSwitch": true,
-		"strictNullChecks": true
+		"strictNullChecks": true,
+		"experimentalDecorators": true
 	},
 	"exclude": [
 		"node_modules",

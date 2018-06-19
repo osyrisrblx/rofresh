@@ -1,4 +1,10 @@
 {
 	"name": "RofreshPlugin",
-	"allowAnyPlaceId": true
+	"allowAnyPlaceId": true,
+	"partitions": {
+		"src": {
+			"path": "src",
+			"target": "ReplicatedStorage.RofreshPlugin"
+		}
+	}
 }

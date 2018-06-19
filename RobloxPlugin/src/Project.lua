@@ -1,3 +1,5 @@
+-- Project class
+
 local CollectionService = game:GetService("CollectionService")
 
 -- Project constants
@@ -19,7 +21,10 @@ local function findFirstChildOfNameAndClass(parent, name, classNames)
 		classNames = {classNames}
 	end
 	for _, child in pairs(parent:GetChildren()) do
-		if child.Name == name and existsIn(classNames, child.ClassName) then
+		local success, condition = pcall(function()
+			return child.Name == name and existsIn(classNames, child.ClassName)
+		end)
+		if success and condition then
 			return child
 		end
 	end
@@ -93,6 +98,9 @@ end
 
 function Project:getScriptObject(path, className, isContainer)
 	local name = table.remove(path)
+	if not name then
+		return
+	end
 	local parent = game
 	for i = 1, #path do
 		local object = parent:FindFirstChild(path[i])

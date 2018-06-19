@@ -1,22 +1,23 @@
+import http = require("http");
 import path = require("path");
 
 import Client from "./class/Client";
 import Project from "./class/Project";
 import Server from "./class/Server";
-import { IClientPayload } from "./types";
+import { ClientPayload } from "./types";
 import { writeJson } from "./utility";
+import Language from "./class/Language";
 
 const PORT = 8888;
 
 const server = new Server();
 server.enabled = false;
 
-server.get("/", (request, response) => {
-	const clientId = request.headers["client-id"];
-	const placeIdStr = request.headers["roblox-id"];
+function getClient(req: http.IncomingMessage) {
+	const clientId = req.headers["client-id"];
+	const placeIdStr = req.headers["roblox-id"];
 	if (!clientId || typeof clientId !== "string") {
-		console.log(clientId);
-		throw new Error("Bad clientId! 2");
+		throw new Error("Bad clientId!");
 	}
 
 	if (!placeIdStr || typeof placeIdStr !== "string") {
@@ -42,40 +43,48 @@ server.get("/", (request, response) => {
 		client = new Client(clientId, placeId);
 	}
 
-	if (client) {
-		if (request.method === "GET") {
-			client.setResponse(response);
-		} else if (request.method === "POST") {
-			// TODO
-			let data = "";
-			request
-				.on("close", () => client.disconnect(response))
-				.on("data", chunk => (data += chunk.toString()))
-				.on("end", () => {
-					let clientBody: IClientPayload | undefined;
-					try {
-						clientBody = JSON.parse(data);
-					} catch (e) {}
-					if (clientBody) {
-						const changes = clientBody.changes;
-						const projectId = clientBody.projectName;
-						if (changes && changes.length > 0 && projectId) {
-							client.syncChangesFromStudio(projectId, changes);
-						}
-					}
-				});
-		}
-	}
-});
+	return client;
+}
+
+server.get("/", (req, res) => getClient(req).setResponse(res));
 
 server.post("/", (req, res) => {
-	writeJson(res, {
-		hello: "world",
-		url: req.url,
-	});
+	// TODO
+	const client = getClient(req);
+	let data = "";
+	req.on("close", () => client.disconnect(res))
+		.on("data", chunk => (data += chunk.toString()))
+		.on("end", () => {
+			let clientBody: ClientPayload | undefined;
+			try {
+				clientBody = JSON.parse(data);
+			} catch (e) {}
+			if (clientBody) {
+				const changes = clientBody.changes;
+				const projectId = clientBody.projectName;
+				if (changes && changes.length > 0 && projectId) {
+					client.syncChangesFromStudio(projectId, changes);
+				}
+			}
+		});
+	writeJson(res, { success: true });
 });
 
-server.get("/projects", (_, res) => writeJson(res, Project.instances.map(project => project.name)));
+server.get("/projects", (req, res) => {
+	const client = getClient(req);
+	writeJson(
+		res,
+		Project.instances.filter(project => project.isValidPlaceId(client.placeId)).map(project => project.name),
+	);
+});
+
+server.get("/debug", (req, res) => {
+	writeJson(res, {
+		clients: Client.instances,
+		languages: Language.instances,
+		projects: Project.instances,
+	});
+});
 
 server.listen(PORT);
 

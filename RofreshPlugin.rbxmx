@@ -1,16 +1,17 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Script" referent="RBXA114E1B928684EAA8783355C8900F372">
+	<Item class="Script" referent="RBX2E336E3B4F2347F3A9B0F94A7D4FFCC1">
 		<Properties>
 			<bool name="Disabled">false</bool>
 			<Content name="LinkedSource"><null></null></Content>
 			<string name="Name">RofreshPlugin</string>
-			<string name="ScriptGuid">{2E53A380-F9D3-42C6-9570-FC51DE92348C}</string>
+			<string name="ScriptGuid">{307256E3-3FB7-4476-A3CE-4D92E62C7F0B}</string>
 			<ProtectedString name="Source"><![CDATA[-- Rofresh Studio Plugin
 
 -- services
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
 
 -- imports
@@ -25,7 +26,7 @@ local OUTPUT_PREFIX = "[Rofresh]"
 -- static constants
 local URL_TEMPLATE = "http://localhost:%d"
 local SERVER_URL = string.format(URL_TEMPLATE, PORT)
-local HEADERS = { ["client-id"] = HttpService:GenerateGUID(false) }
+local HEADERS = { ["client-id"] = string.gsub(HttpService:GenerateGUID(false), "-", "") }
 
 -- error constants
 local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game settings"
@@ -49,9 +50,9 @@ local function debugPrint(...)
 	end
 end
 
-local localTag = HttpService:GenerateGUID(false)
+local pluginId = string.gsub(HttpService:GenerateGUID(false), "-", "")
 _G.rofresh = {}
-_G.rofresh.tag = localTag
+_G.rofresh.pluginId = pluginId
 _G.rofresh.debugPrint = debugPrint
 
 --* plugin object creation *--
@@ -90,22 +91,35 @@ end
 
 local httpEnabled = true
 
+local jobId
+
+local function isJobValid(myJobId)
+	return myJobId == jobId and _G.rofresh.pluginId == pluginId
+end
+
+
 --* main loop *--
 coroutine.wrap(function()
-	while _G.rofresh.tag == localTag and wait() do
-		-- check game.PlaceId
-		if game.PlaceId == 0 then
-			warn("game.PlaceId cannot be 0")
-			while game.PlaceId == 0 do
-				game:GetPropertyChangedSignal("PlaceId"):Wait()
-			end
-		end
-		if _G.rofresh.tag ~= localTag then return end
+	while RunService.Heartbeat:Wait() and _G.rofresh.pluginId == pluginId do
+		local myJobId = {}
+		jobId = myJobId
 
-		local success, rawJsonOrError = pcall(function()
-			return HttpService:GetAsync(SERVER_URL, true, HEADERS)
-		end)
-		if _G.rofresh.tag ~= localTag then return end
+		_G.rofresh.debugPrint("Sending request..")
+		local success, rawJsonOrError
+		local isFinished = false
+		coroutine.wrap(function()
+			success, rawJsonOrError = pcall(function()
+				return HttpService:GetAsync(SERVER_URL, true, HEADERS)
+			end)
+			isFinished = true
+		end)()
+		while isJobValid(myJobId) and not isFinished do
+			RunService.Heartbeat:Wait()
+		end
+		if not isJobValid(myJobId) then
+			return
+		end
+		_G.rofresh.debugPrint("Recieved response!")
 
 		if success then
 			if not httpEnabled then
@@ -155,7 +169,6 @@ coroutine.wrap(function()
 				while prop ~= "HttpEnabled" do
 					prop = HttpService.Changed:Wait()
 				end
-				if _G.rofresh.tag ~= localTag then return end
 				-- bypass throttle
 				success = true
 			elseif  rawJsonOrError ~= CURL_CONNECT_ERROR
@@ -175,15 +188,26 @@ coroutine.wrap(function()
 	print("Rofresh ended.")
 end)()
 
+local placeId = game.PlaceId
+game:GetPropertyChangedSignal("PlaceId"):Connect(function()
+	if placeId ~= game.PlaceId then
+		_G.rofresh.debugPrint("PlaceId changed, restart request")
+		placeId = game.PlaceId
+		jobId = nil
+	end
+end)
+
 print("Rofresh Studio Plugin running..")]]></ProtectedString>
 			<BinaryString name="Tags">LlJvZnJlc2hfUm9mcmVzaFBsdWdpbg==</BinaryString>
 		</Properties>
-		<Item class="ModuleScript" referent="RBXDF90C40463314334B330C00FE6943435">
+		<Item class="ModuleScript" referent="RBX7CEDE6778DD74256BE71BE9C3B0331DE">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<string name="Name">Project</string>
-				<string name="ScriptGuid">{E6C2736E-EA47-4F50-AFB0-94F8158F21D0}</string>
-				<ProtectedString name="Source"><![CDATA[local CollectionService = game:GetService("CollectionService")
+				<string name="ScriptGuid"></string>
+				<ProtectedString name="Source"><![CDATA[-- Project class
+
+local CollectionService = game:GetService("CollectionService")
 
 -- Project constants
 local TAG_PREFIX = ".Rofresh_"
@@ -204,7 +228,10 @@ local function findFirstChildOfNameAndClass(parent, name, classNames)
 		classNames = {classNames}
 	end
 	for _, child in pairs(parent:GetChildren()) do
-		if child.Name == name and existsIn(classNames, child.ClassName) then
+		local success, condition = pcall(function()
+			return child.Name == name and existsIn(classNames, child.ClassName)
+		end)
+		if success and condition then
 			return child
 		end
 	end
@@ -278,6 +305,9 @@ end
 
 function Project:getScriptObject(path, className, isContainer)
 	local name = table.remove(path)
+	if not name then
+		return
+	end
 	local parent = game
 	for i = 1, #path do
 		local object = parent:FindFirstChild(path[i])
