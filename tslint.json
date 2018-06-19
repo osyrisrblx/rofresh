@@ -23,6 +23,7 @@
 		"max-classes-per-file": false,
 		"no-unused-expression": false,
 		"interface-name": false,
-		"no-empty-interface": false
+		"no-empty-interface": false,
+		"forin": false
 	}
 }

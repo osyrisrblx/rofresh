@@ -8,7 +8,7 @@ export interface RofreshConfig {
 	placeIds?: Array<number>;
 	allowAnyPlaceId?: boolean;
 	partitions: {
-		[index: string]: Partition;
+		[index: string]: Partition | undefined;
 	};
 }
 
@@ -30,13 +30,9 @@ export interface ClientPayload {
 	changes?: Array<Change>;
 }
 
-export interface InitialPaths {
-	[index: string]: true;
-}
-
 export interface ProjectPayload {
 	projectName: string;
 	changes?: Array<Change | Remove>;
 	tagOverride?: string;
-	initialPaths?: InitialPaths;
+	initial?: boolean;
 }

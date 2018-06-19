@@ -29,10 +29,6 @@ function getClient(req: http.IncomingMessage) {
 		throw new Error("placeId must be a number!");
 	}
 
-	if (placeId === 0) {
-		throw new Error("placeId must not be 0");
-	}
-
 	let client = Client.instances.filter(value => value.id === clientId)[0];
 	if (client) {
 		if (client.placeId !== placeId) {

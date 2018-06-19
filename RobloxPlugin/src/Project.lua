@@ -56,22 +56,13 @@ function Project.new(id, tagOverride)
 end
 
 local function getPathStr(object)
-	local pathStr = object.Name .. "/" .. object.ClassName
+	local pathStr = object.Name .. "." .. object.ClassName
 	local parent = object.Parent
 	while parent and parent ~= game do
-		pathStr = parent.Name .. "/" .. pathStr
+		pathStr = parent.Name .. "." .. pathStr
 		parent = parent.Parent
 	end
 	return pathStr
-end
-
-function Project:initialize(initialPaths)
-	local syncObjects = CollectionService:GetTagged(self.tag)
-	for _, object in pairs(syncObjects) do
-		if not initialPaths[getPathStr(object)] then
-			self:unsync(object)
-		end
-	end
 end
 
 function Project:unsync(object)
@@ -89,7 +80,7 @@ function Project:unsync(object)
 		else
 			local parent = object.Parent
 			object:Destroy()
-			if parent:IsA("Folder") and #parent:GetChildren() == 0 then
+			if parent and parent:IsA("Folder") and #parent:GetChildren() == 0 then
 				self:unsync(parent)
 			end
 		end
@@ -140,7 +131,8 @@ function Project:getScriptObject(path, className, isContainer)
 	return scriptObject
 end
 
-function Project:processChanges(changes)
+function Project:processChanges(changes, initial)
+	local paths = {}
 	for _, change in pairs(changes) do
 		local doCreate = change.source ~= nil
 		local isContainer = false
@@ -148,18 +140,30 @@ function Project:processChanges(changes)
 			table.remove(change.path)
 			isContainer = true
 		end
+		local pathStr = table.concat(change.path, ".") .. "." .. change.type
+		paths[pathStr] = true
 		if doCreate then
-			_G.rofresh.debugPrint("ADD", table.concat(change.path, ".") .. "." .. change.type)
+			_G.rofresh.debugPrint("ADD", pathStr)
 			local scriptObject = self:getScriptObject(change.path, change.type, isContainer)
 			if scriptObject then
 				CollectionService:AddTag(scriptObject, self.tag)
 				scriptObject.Source = change.source
 			end
 		else
-			_G.rofresh.debugPrint("REMOVE", table.concat(change.path, ".") .. "." .. change.type)
+			_G.rofresh.debugPrint("REMOVE", pathStr)
 			local scriptObject = findOnPath(change.path, change.type)
 			if scriptObject then
 				self:unsync(scriptObject)
+			end
+		end
+	end
+	if initial then
+		local syncObjects = CollectionService:GetTagged(self.tag)
+		for _, object in pairs(syncObjects) do
+			if object:IsA("LuaSourceContainer") then
+				if not paths[getPathStr(object)] then
+					self:unsync(object)
+				end
 			end
 		end
 	end

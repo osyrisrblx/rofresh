@@ -54,20 +54,24 @@ export default class Partition {
 		});
 	}
 
-	public async getChangesFromDir(dir: string, changes: Array<Change>) {
+	private async getPathsRecursive(dir = this.directory, paths = new Array<string>()) {
 		if (this.isSingleFile) {
-			changes.push(await this.getChangeFromFile(dir));
+			paths.push(dir);
 		} else {
 			for (const fileName of await fs.readdir(dir)) {
 				const filePath = path.resolve(dir, fileName);
 				if ((await fs.stat(filePath)).isDirectory()) {
-					await this.getChangesFromDir(filePath, changes);
-				} else if (!filePath.match(Language.ignoreRegExp)) {
-					changes.push(await this.getChangeFromFile(filePath));
+					await this.getPathsRecursive(filePath, paths);
+				} else if (filePath.match(Language.ignoreRegExp) === null) {
+					paths.push(filePath);
 				}
 			}
 		}
-		return changes;
+		return paths;
+	}
+
+	public async getChangesRecursive() {
+		return Promise.all((await this.getPathsRecursive()).map(filePath => this.getChangeFromFile(filePath)));
 	}
 
 	private async getUpdateFromFile(filePath: string): Promise<Update> {

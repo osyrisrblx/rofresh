@@ -1,12 +1,12 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Script" referent="RBX2E336E3B4F2347F3A9B0F94A7D4FFCC1">
+	<Item class="Script" referent="RBXD871F9F170E34040ADE693D6C4B344C6">
 		<Properties>
 			<bool name="Disabled">false</bool>
 			<Content name="LinkedSource"><null></null></Content>
 			<string name="Name">RofreshPlugin</string>
-			<string name="ScriptGuid">{307256E3-3FB7-4476-A3CE-4D92E62C7F0B}</string>
+			<string name="ScriptGuid">{5D461C49-4C4D-49BC-9A8D-6EC64B285FD3}</string>
 			<ProtectedString name="Source"><![CDATA[-- Rofresh Studio Plugin
 
 -- services
@@ -55,7 +55,7 @@ _G.rofresh = {}
 _G.rofresh.pluginId = pluginId
 _G.rofresh.debugPrint = debugPrint
 
---* plugin object creation *--
+-- plugin object creation
 do
 	local toolbar = plugin:CreateToolbar("Rofresh")
 
@@ -98,7 +98,7 @@ local function isJobValid(myJobId)
 end
 
 
---* main loop *--
+-- main loop
 coroutine.wrap(function()
 	while RunService.Heartbeat:Wait() and _G.rofresh.pluginId == pluginId do
 		local myJobId = {}
@@ -144,12 +144,8 @@ coroutine.wrap(function()
 							project = Project.new(projectPayload.projectName, projectPayload.tagOverride)
 						end
 
-						if projectPayload.initialPaths then
-							project:initialize(projectPayload.initialPaths)
-						end
-
-						if projectPayload.changes then
-							project:processChanges(projectPayload.changes)
+						if projectPayload.changes or projectPayload.initial then
+							project:processChanges(projectPayload.changes, projectPayload.initial)
 						end
 					end
 				else
@@ -200,11 +196,11 @@ end)
 print("Rofresh Studio Plugin running..")]]></ProtectedString>
 			<BinaryString name="Tags">LlJvZnJlc2hfUm9mcmVzaFBsdWdpbg==</BinaryString>
 		</Properties>
-		<Item class="ModuleScript" referent="RBX7CEDE6778DD74256BE71BE9C3B0331DE">
+		<Item class="ModuleScript" referent="RBX86649AC71B644BFE887F6C8C1F4B3D7B">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<string name="Name">Project</string>
-				<string name="ScriptGuid"></string>
+				<string name="ScriptGuid">{39B86A00-9B97-4695-9E95-58644FF01F26}</string>
 				<ProtectedString name="Source"><![CDATA[-- Project class
 
 local CollectionService = game:GetService("CollectionService")
@@ -263,22 +259,13 @@ function Project.new(id, tagOverride)
 end
 
 local function getPathStr(object)
-	local pathStr = object.Name .. "/" .. object.ClassName
+	local pathStr = object.Name .. "." .. object.ClassName
 	local parent = object.Parent
 	while parent and parent ~= game do
-		pathStr = parent.Name .. "/" .. pathStr
+		pathStr = parent.Name .. "." .. pathStr
 		parent = parent.Parent
 	end
 	return pathStr
-end
-
-function Project:initialize(initialPaths)
-	local syncObjects = CollectionService:GetTagged(self.tag)
-	for _, object in pairs(syncObjects) do
-		if not initialPaths[getPathStr(object)] then
-			self:unsync(object)
-		end
-	end
 end
 
 function Project:unsync(object)
@@ -296,7 +283,7 @@ function Project:unsync(object)
 		else
 			local parent = object.Parent
 			object:Destroy()
-			if parent:IsA("Folder") and #parent:GetChildren() == 0 then
+			if parent and parent:IsA("Folder") and #parent:GetChildren() == 0 then
 				self:unsync(parent)
 			end
 		end
@@ -347,7 +334,8 @@ function Project:getScriptObject(path, className, isContainer)
 	return scriptObject
 end
 
-function Project:processChanges(changes)
+function Project:processChanges(changes, initial)
+	local paths = {}
 	for _, change in pairs(changes) do
 		local doCreate = change.source ~= nil
 		local isContainer = false
@@ -355,18 +343,30 @@ function Project:processChanges(changes)
 			table.remove(change.path)
 			isContainer = true
 		end
+		local pathStr = table.concat(change.path, ".") .. "." .. change.type
+		paths[pathStr] = true
 		if doCreate then
-			_G.rofresh.debugPrint("ADD", table.concat(change.path, ".") .. "." .. change.type)
+			_G.rofresh.debugPrint("ADD", pathStr)
 			local scriptObject = self:getScriptObject(change.path, change.type, isContainer)
 			if scriptObject then
 				CollectionService:AddTag(scriptObject, self.tag)
 				scriptObject.Source = change.source
 			end
 		else
-			_G.rofresh.debugPrint("REMOVE", table.concat(change.path, ".") .. "." .. change.type)
+			_G.rofresh.debugPrint("REMOVE", pathStr)
 			local scriptObject = findOnPath(change.path, change.type)
 			if scriptObject then
 				self:unsync(scriptObject)
+			end
+		end
+	end
+	if initial then
+		local syncObjects = CollectionService:GetTagged(self.tag)
+		for _, object in pairs(syncObjects) do
+			if object:IsA("LuaSourceContainer") then
+				if not paths[getPathStr(object)] then
+					self:unsync(object)
+				end
 			end
 		end
 	end

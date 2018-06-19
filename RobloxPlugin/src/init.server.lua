@@ -46,7 +46,7 @@ _G.rofresh = {}
 _G.rofresh.pluginId = pluginId
 _G.rofresh.debugPrint = debugPrint
 
---* plugin object creation *--
+-- plugin object creation
 do
 	local toolbar = plugin:CreateToolbar("Rofresh")
 
@@ -89,7 +89,7 @@ local function isJobValid(myJobId)
 end
 
 
---* main loop *--
+-- main loop
 coroutine.wrap(function()
 	while RunService.Heartbeat:Wait() and _G.rofresh.pluginId == pluginId do
 		local myJobId = {}
@@ -135,12 +135,8 @@ coroutine.wrap(function()
 							project = Project.new(projectPayload.projectName, projectPayload.tagOverride)
 						end
 
-						if projectPayload.initialPaths then
-							project:initialize(projectPayload.initialPaths)
-						end
-
-						if projectPayload.changes then
-							project:processChanges(projectPayload.changes)
+						if projectPayload.changes or projectPayload.initial then
+							project:processChanges(projectPayload.changes, projectPayload.initial)
 						end
 					end
 				else

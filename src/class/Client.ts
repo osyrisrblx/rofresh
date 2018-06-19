@@ -4,11 +4,16 @@ import { Change, ProjectPayload, Remove } from "../types";
 import { writeJson } from "../utility";
 import Project from "./Project";
 
+class ProjectQueue {
+	public changes = new Map<string, Change | Remove>();
+	public initial?: boolean;
+}
+
 export default class Client {
 	private static readonly _instances = new Array<Client>();
 	public static readonly instances: ReadonlyArray<Client> = Client._instances;
 
-	private sendQueue = new Map<string, Map<string, Change | Remove>>();
+	private sendQueue = new Map<string, ProjectQueue>();
 	private response?: http.ServerResponse;
 
 	constructor(public id: string, public placeId: number) {
@@ -16,10 +21,20 @@ export default class Client {
 		this.fullSyncToStudio();
 	}
 
+	private getProjectQueue(projectName: string) {
+		let projectQueue = this.sendQueue.get(projectName);
+		if (projectQueue === undefined) {
+			projectQueue = new ProjectQueue();
+			this.sendQueue.set(projectName, projectQueue);
+		}
+		return projectQueue;
+	}
+
 	public fullSyncToStudio() {
-		Project.instances
-			.filter(project => project.isValidPlaceId(this.placeId))
-			.forEach(project => project.fullSyncToStudio(this));
+		Project.instances.filter(project => project.isValidPlaceId(this.placeId)).forEach(project => {
+			this.getProjectQueue(project.name).initial = true;
+			project.fullSyncToStudio(this);
+		});
 	}
 
 	public remove() {
@@ -33,19 +48,30 @@ export default class Client {
 	public writeResponse() {
 		if (this.response) {
 			const payload = new Array<ProjectPayload>();
-			this.sendQueue.forEach((projectQueue, projectName) => {
-				const changes = new Array<Change | Remove>();
-				projectQueue.forEach((change, path) => {
-					changes.push(change);
-					projectQueue.delete(path);
-				});
-				if (changes.length > 0) {
-					payload.push({ projectName, changes });
+
+			for (const projectName of this.sendQueue.keys()) {
+				const projectQueue = this.sendQueue.get(projectName);
+				if (projectQueue === undefined) {
+					continue;
 				}
-			});
+				const changes = new Array<Change | Remove>();
+				for (const key of projectQueue.changes.keys()) {
+					const change = projectQueue.changes.get(key);
+					if (change) {
+						changes.push(change);
+						projectQueue.changes.delete(key);
+					}
+				}
+				if (changes.length > 0) {
+					payload.push({ projectName, changes, initial: projectQueue.initial });
+					projectQueue.initial = false;
+				}
+			}
+
 			if (payload.length > 0) {
 				const res = this.response;
 				this.response = undefined;
+				console.log("send");
 				writeJson(res, payload);
 			}
 		}
@@ -58,19 +84,14 @@ export default class Client {
 	}
 
 	public async syncToStudio(projectName: string, changes: Array<Change | Remove>) {
-		let projectQueue = this.sendQueue.get(projectName);
-		if (!projectQueue) {
-			projectQueue = new Map<string, Change>();
-			this.sendQueue.set(projectName, projectQueue);
-		}
-
-		changes.forEach(change => {
+		const projectQueue = this.getProjectQueue(projectName);
+		for (const change of changes) {
 			const changePath = [...change.path];
 			if (changePath[changePath.length - 1] === "init") {
 				changePath.pop();
 			}
-			projectQueue!.set(changePath.join("/") + "/" + change.type, change);
-		});
+			projectQueue.changes.set(changePath.join("/") + "/" + change.type, change);
+		}
 		this.writeResponse();
 	}
 
@@ -81,7 +102,7 @@ export default class Client {
 	}
 
 	public disconnect(res?: http.ServerResponse) {
-		if (this.response && (!res || res === this.response)) {
+		if (this.response && (res === undefined || res === this.response)) {
 			this.response.end();
 			this.response = undefined;
 		}

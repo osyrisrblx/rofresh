@@ -3,7 +3,7 @@ import fs = require("mz/fs");
 import path = require("path");
 import util = require("util");
 
-import { Change, InitialPaths, Remove, RofreshConfig } from "../types";
+import { Change, Remove, RofreshConfig } from "../types";
 import { getFileContents } from "../utility";
 import Client from "./Client";
 import Partition from "./Partition";
@@ -106,13 +106,14 @@ export default class Project {
 		const configPartitions = config.partitions || DEFAULT_PARTITIONS;
 		let amtPartitions = 0;
 		for (const key in configPartitions) {
+			const partitionInfo = configPartitions[key];
 			if (
 				typeof key !== "string" ||
-				configPartitions[key] === undefined ||
-				configPartitions[key].path === undefined ||
-				configPartitions[key].target === undefined ||
-				typeof configPartitions[key].path !== "string" ||
-				typeof configPartitions[key].target !== "string"
+				partitionInfo === undefined ||
+				partitionInfo.path === undefined ||
+				partitionInfo.target === undefined ||
+				typeof partitionInfo.path !== "string" ||
+				typeof partitionInfo.target !== "string"
 			) {
 				console.log(util.format("Invalid configuration: partitions"));
 				return;
@@ -143,15 +144,11 @@ export default class Project {
 			}
 			this.partitions.splice(0, this.partitions.length);
 			for (const partitionName in configPartitions) {
-				if (configPartitions[partitionName]) {
-					const partitionPath = path.join(this.directory, configPartitions[partitionName].path);
+				const partitionInfo = configPartitions[partitionName];
+				if (partitionInfo) {
+					const partitionPath = path.join(this.directory, partitionInfo.path);
 					if (await fs.exists(partitionPath)) {
-						const partition = new Partition(
-							this,
-							partitionName,
-							partitionPath,
-							configPartitions[partitionName].target,
-						);
+						const partition = new Partition(this, partitionName, partitionPath, partitionInfo.target);
 						this.partitions.push(partition);
 						if (this.isRunning) {
 							partition.start();
@@ -167,20 +164,17 @@ export default class Project {
 		this.hasEverBeenConfigured = true;
 	}
 
-	private async getInitialPaths(): Promise<InitialPaths> {
-		return {};
-	}
-
 	public async fullSyncToStudio(client: Client) {
 		if (!this.hasEverBeenConfigured) {
 			setTimeout(() => this.fullSyncToStudio(client), 10);
 			return;
 		}
-		const changes = new Array<Change>();
-		for (const partition of this.partitions) {
-			await partition.getChangesFromDir(partition.directory, changes);
-		}
-		client.syncToStudio(this.name, changes);
+		const promises = new Array<Promise<Array<Change>>>();
+		this.partitions.forEach(partition => promises.push(partition.getChangesRecursive()));
+		client.syncToStudio(
+			this.name,
+			(await Promise.all(promises)).reduce((accum, value) => accum.concat(value), new Array<Change>()),
+		);
 	}
 
 	public async distributeChangeToStudio(change: Change | Remove) {

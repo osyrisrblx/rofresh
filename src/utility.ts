@@ -10,7 +10,7 @@ const FILE_RETRY_DELAY = 10; // ms
 
 function decircularJson(object: any) {
 	let cache: Array<any> | null = new Array<any>();
-	const result = JSON.stringify(object, (key, value) => {
+	const result = JSON.stringify(object, (_, value) => {
 		if (typeof value === "object" && value !== null) {
 			if (cache!.indexOf(value) !== -1) {
 				try {
