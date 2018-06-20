@@ -1,22 +1,22 @@
-import iots = require("io-ts");
+import io_ts = require("io-ts");
 
-export const PartitionIO = iots.interface({
-	path: iots.string,
-	target: iots.string,
+export const PartitionIO = io_ts.interface({
+	path: io_ts.string,
+	target: io_ts.string,
 });
 
-export const RofreshConfigIO = iots.intersection([
-	iots.interface({
-		name: iots.string,
+export const RofreshConfigIO = io_ts.intersection([
+	io_ts.interface({
+		name: io_ts.string,
 	}),
-	iots.partial({
-		allowAnyPlaceId: iots.boolean,
-		partitions: iots.dictionary(iots.string, PartitionIO),
-		placeIds: iots.array(iots.number),
+	io_ts.partial({
+		allowAnyPlaceId: io_ts.boolean,
+		partitions: io_ts.dictionary(io_ts.string, PartitionIO),
+		placeIds: io_ts.array(io_ts.number),
 	}),
 ]);
 
-export type RofreshConfig = iots.TypeOf<typeof RofreshConfigIO>;
+export type RofreshConfig = io_ts.TypeOf<typeof RofreshConfigIO>;
 
 export interface Update {
 	path: Array<string>;
