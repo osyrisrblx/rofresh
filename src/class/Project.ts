@@ -3,6 +3,7 @@ import fs = require("mz/fs");
 import path = require("path");
 import util = require("util");
 
+import { PathReporter } from "io-ts/lib/PathReporter";
 import { Change, Remove, RofreshConfig, RofreshConfigIO } from "../types";
 import { getFileContents } from "../utility";
 import Client from "./Client";
@@ -136,9 +137,10 @@ export default class Project {
 			return;
 		}
 
-		RofreshConfigIO.decode(configJson)
-			.map(config => this.applyConfig(config))
-			.mapLeft(errors => console.log("errors", errors));
+		const configIO = RofreshConfigIO.decode(configJson).map(config => this.applyConfig(config));
+		if (configIO.isLeft()) {
+			console.warn("Config Error", PathReporter.report(configIO));
+		}
 	}
 
 	public async fullSyncToStudio(client: Client) {
