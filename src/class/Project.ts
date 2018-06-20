@@ -21,7 +21,6 @@ export default class Project {
 	private static readonly _instances = new Array<Project>();
 	public static readonly instances: ReadonlyArray<Project> = Project._instances;
 
-	private partitions = new Array<Partition>();
 	private configWatcher?: chokidar.FSWatcher;
 	private isRunning = false;
 	private allowAnyPlaceId = false;
@@ -30,6 +29,7 @@ export default class Project {
 	public readonly placeIds: ReadonlySet<number> = this._placeIds;
 
 	public readonly directory: string;
+	public readonly partitions = new Array<Partition>();
 	public name = "";
 
 	constructor(directory: string) {
@@ -166,10 +166,6 @@ export default class Project {
 			console.log("watch", this.directory, [...this.placeIds].toString());
 			this.isRunning = true;
 			this.partitions.forEach(partition => partition.start());
-			Client.instances.filter(client => this.isValidPlaceId(client.placeId)).forEach(client => {
-				console.log("full sync (start)", client.id);
-				this.fullSyncToStudio(client);
-			});
 		}
 	}
 

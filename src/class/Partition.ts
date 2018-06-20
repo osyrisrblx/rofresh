@@ -4,6 +4,7 @@ import path = require("path");
 
 import { Change, Remove, Update } from "../types";
 import { getFileContents } from "../utility";
+import Client from "./Client";
 import Language from "./Language";
 import Project from "./Project";
 
@@ -149,6 +150,10 @@ export default class Partition {
 		this.project.distributeChangeToStudio(await this.getRemoveFromFile(filePath));
 	}
 
+	public async fullSyncToStudio(client: Client) {
+		client.syncToStudio(this.project.name, await this.getChangesRecursive());
+	}
+
 	public start() {
 		if (!this.isRunning) {
 			this.isRunning = true;
@@ -172,6 +177,9 @@ export default class Partition {
 				.on("change", (filePath: string) => {
 					this.syncChangeToStudio(filePath);
 				});
+			Client.instances
+				.filter(client => this.project.isValidPlaceId(client.placeId))
+				.forEach(client => this.fullSyncToStudio(client));
 		}
 	}
 

@@ -30,10 +30,15 @@ export default class Client {
 		return projectQueue;
 	}
 
-	public fullSyncToStudio() {
-		Project.instances.filter(project => project.isValidPlaceId(this.placeId)).forEach(project => {
+	public async fullSyncToStudio() {
+		Project.instances.filter(project => project.isValidPlaceId(this.placeId)).forEach(async project => {
 			this.getProjectQueue(project.name).initial = true;
-			project.fullSyncToStudio(this);
+			const promises = new Array<Promise<Array<Change>>>();
+			project.partitions.forEach(partition => promises.push(partition.getChangesRecursive()));
+			this.syncToStudio(
+				project.name,
+				(await Promise.all(promises)).reduce((accum, value) => accum.concat(value), new Array<Change>()),
+			);
 		});
 	}
 
