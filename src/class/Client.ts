@@ -71,7 +71,6 @@ export default class Client {
 			if (payload.length > 0) {
 				const res = this.response;
 				this.response = undefined;
-				console.log("send");
 				writeJson(res, payload);
 			}
 		}

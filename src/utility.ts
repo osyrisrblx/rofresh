@@ -1,5 +1,5 @@
-import child_process = require("child_process");
 import http = require("http");
+import child_process = require("mz/child_process");
 import fs = require("mz/fs");
 import path = require("path");
 
@@ -65,7 +65,7 @@ const WIN32_CMD = "tasklist";
 const WIN32_SUFFIX = ".exe";
 const DARWIN_CMD = "ps -ax | grep ";
 
-export function isProcessRunningSync(name: string) {
+export async function isProcessRunning(name: string) {
 	let cmd = "";
 	if (process.platform === "win32") {
 		cmd = WIN32_CMD;
@@ -75,30 +75,30 @@ export function isProcessRunningSync(name: string) {
 	} else {
 		return false;
 	}
+	const [stdout, stderr] = await child_process.exec(cmd);
 	return (
-		child_process
-			.execSync(cmd)
+		stdout
 			.toString()
 			.toLowerCase()
 			.indexOf(name.toLowerCase()) > -1
 	);
 }
 
-function getPluginInstallPathWin32() {
+async function getPluginInstallPathWin32() {
 	const appData = process.env.LOCALAPPDATA;
 	if (appData) {
 		const robloxFolder = path.join(appData, "Roblox");
-		if (fs.existsSync(robloxFolder)) {
+		if (await fs.exists(robloxFolder)) {
 			const pluginsFolder = path.join(robloxFolder, "Plugins");
-			if (!fs.existsSync(pluginsFolder)) {
-				fs.mkdirSync(pluginsFolder);
+			if (!(await fs.exists(pluginsFolder))) {
+				await fs.mkdir(pluginsFolder);
 			}
 			return path.join(pluginsFolder, PLUGIN_FILE_NAME);
 		}
 	}
 }
 
-function getPluginInstallPathDarwin() {
+async function getPluginInstallPathDarwin() {
 	return undefined;
 }
 
@@ -112,9 +112,9 @@ export enum PluginInstallResult {
 /**
  * attempts to automatically install the Rofresh Roblox Studio plugin
  */
-export function installPlugin(installDir?: string) {
+export async function installPlugin(installDir?: string) {
 	const pluginPath = path.join(__dirname, "..", PLUGIN_FILE_NAME);
-	if (!fs.existsSync(pluginPath)) {
+	if (!(await fs.exists(pluginPath))) {
 		throw new Error("Plugin file missing!");
 	}
 	let installPath: string | undefined;
@@ -122,9 +122,9 @@ export function installPlugin(installDir?: string) {
 		installPath = path.join(installDir, "Plugins", PLUGIN_FILE_NAME);
 	} else {
 		if (process.platform === "win32") {
-			installPath = getPluginInstallPathWin32();
+			installPath = await getPluginInstallPathWin32();
 		} else if (process.platform === "darwin") {
-			installPath = getPluginInstallPathDarwin();
+			installPath = await getPluginInstallPathDarwin();
 			// TODO
 			return PluginInstallResult.Failure;
 		} else {
@@ -133,14 +133,14 @@ export function installPlugin(installDir?: string) {
 	}
 
 	// validate paths
-	if (!installPath || !fs.existsSync(pluginPath)) {
+	if (!installPath || !(await fs.exists(pluginPath))) {
 		return PluginInstallResult.Failure;
 	}
 
 	// copy
-	fs.writeFileSync(installPath, fs.readFileSync(pluginPath));
+	await fs.writeFile(installPath, await fs.readFile(pluginPath));
 
-	if (isProcessRunningSync(ROBLOX_STUDIO_PROCESS_NAME)) {
+	if (await isProcessRunning(ROBLOX_STUDIO_PROCESS_NAME)) {
 		return PluginInstallResult.PromptRestartStudio;
 	} else {
 		return PluginInstallResult.Success;

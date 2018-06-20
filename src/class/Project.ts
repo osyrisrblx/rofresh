@@ -3,7 +3,7 @@ import fs = require("mz/fs");
 import path = require("path");
 import util = require("util");
 
-import { Change, Remove, RofreshConfig } from "../types";
+import { Change, Remove, RofreshConfig, RofreshConfigIO } from "../types";
 import { getFileContents } from "../utility";
 import Client from "./Client";
 import Partition from "./Partition";
@@ -32,6 +32,8 @@ export default class Project {
 
 	public readonly directory: string;
 	public name = "";
+
+	private configTasks = new Array<() => void>();
 
 	constructor(directory: string) {
 		Project._instances.push(this);
@@ -67,7 +69,65 @@ export default class Project {
 		return this.allowAnyPlaceId || this.placeIds.has(placeId);
 	}
 
+	private async applyConfig(config: RofreshConfig) {
+		this.name = config.name;
+		this.allowAnyPlaceId = config.allowAnyPlaceId === true;
+		if (!this.allowAnyPlaceId) {
+			this._placeIds = new Set<number>(config.placeIds);
+		}
+		const configPartitions = config.partitions || DEFAULT_PARTITIONS;
+		const partitionsJson = JSON.stringify(configPartitions);
+		if (this.previousPartitionsJson !== partitionsJson) {
+			this.previousPartitionsJson = partitionsJson;
+			const wasRunning = this.isRunning;
+			if (wasRunning) {
+				this.stop();
+			}
+			this.partitions.splice(0, this.partitions.length);
+			for (const partitionName in configPartitions) {
+				const partitionInfo = configPartitions[partitionName];
+				if (partitionInfo) {
+					const partitionPath = path.join(this.directory, partitionInfo.path);
+					const partition = new Partition(this, partitionName, partitionPath, partitionInfo.target);
+					this.partitions.push(partition);
+					if (this.isRunning) {
+						partition.start();
+					}
+				}
+			}
+			if (wasRunning) {
+				this.start();
+			}
+		}
+		this.hasEverBeenConfigured = true;
+		if (this.configTasks.length > 0) {
+		}
+	}
+
 	private async readConfig(configPath: string) {
+		let configJson: object;
+		if (await fs.exists(configPath)) {
+			const fileContents = await getFileContents(configPath);
+			try {
+				configJson = JSON.parse(fileContents.toString());
+			} catch (e) {
+				console.log(util.format("Could not parse JSON ( %s )", configPath));
+				return;
+			}
+		} else {
+			// no config, no project
+			this.remove();
+			return;
+		}
+
+		RofreshConfigIO.decode(configJson)
+			.map(config => this.applyConfig(config))
+			.mapLeft(errors => {
+				errors.forEach(error => console.log(error.value));
+			});
+	}
+
+	private async readConfigOld(configPath: string) {
 		// reset before attempting to read
 		let config: RofreshConfig;
 		if (await fs.exists(configPath)) {

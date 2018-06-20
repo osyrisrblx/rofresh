@@ -2,7 +2,7 @@
 const jsLog = console.log;
 console.log = (...args: Array<any>) => jsLog("\x1b[31m[Rofresh]\x1b[0m", ...args);
 
-import fs = require("fs");
+import fs = require("mz/fs");
 import path = require("path");
 import util = require("util");
 
@@ -11,45 +11,48 @@ import rofresh = require("./rofresh");
 
 const DEFAULT_PROJECT_DIR = ".";
 
-const pkgVersion = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), { encoding: "utf8" }))
-	.version as string;
+async function main() {
+	const pkgVersion = JSON.parse(await fs.readFile(path.join(__dirname, "..", "package.json"), { encoding: "utf8" }))
+		.version as string;
 
-commander
-	.version(pkgVersion, "-v, --version")
-	.arguments("[dir...]")
-	.option("-i --install [dir]", "Install Studio Plugin Automatically")
-	.action((folders: Array<string>) => {
-		for (const folder of folders) {
-			if (fs.existsSync(folder)) {
-				rofresh.addProject(folder);
-			} else {
-				throw new Error(util.format("Path does not exist [ %s ]", folder));
+	commander
+		.version(pkgVersion, "-v, --version")
+		.arguments("[dir...]")
+		.option("-i --install [dir]", "Install Studio Plugin Automatically")
+		.action((folders: Array<string>) => {
+			for (const folder of folders) {
+				if (fs.existsSync(folder)) {
+					rofresh.addProject(folder);
+				} else {
+					throw new Error(util.format("Path does not exist [ %s ]", folder));
+				}
 			}
-		}
-	})
-	.parse(process.argv);
+		})
+		.parse(process.argv);
 
-if (commander.install) {
-	let installDir = commander.install;
-	if (typeof installDir === "string") {
-		if (!fs.existsSync(installDir)) {
-			throw new Error(util.format("Specified installation directory does not exist! [ %s ]", installDir));
+	if (commander.install) {
+		let installDir = commander.install;
+		if (typeof installDir === "string") {
+			if (!(await fs.exists(installDir))) {
+				throw new Error(util.format("Specified installation directory does not exist! [ %s ]", installDir));
+			}
+		} else {
+			installDir = null;
+		}
+		const result = await rofresh.installPlugin(installDir);
+		if (result === rofresh.PluginInstallResult.Success) {
+			console.log("Rofresh plugin successfully installed!");
+		} else if (result === rofresh.PluginInstallResult.Failure) {
+			console.log("Rofresh plugin could not be installed automatically!");
+			console.log(util.format("Please install manually from %s", rofresh.PLUGIN_URL));
+		} else if (result === rofresh.PluginInstallResult.PromptRestartStudio) {
+			console.log("Rofresh plugin successfully installed!");
+			console.log("Please restart Roblox Studio.");
 		}
 	} else {
-		installDir = null;
+		rofresh.addProject(DEFAULT_PROJECT_DIR, true);
+		rofresh.start();
 	}
-	const result = rofresh.installPlugin(installDir);
-	if (result === rofresh.PluginInstallResult.Success) {
-		console.log("Rofresh plugin successfully installed!");
-	} else if (result === rofresh.PluginInstallResult.Failure) {
-		console.log("Rofresh plugin could not be installed automatically!");
-		console.log(util.format("Please install manually from %s", rofresh.PLUGIN_URL));
-	} else if (result === rofresh.PluginInstallResult.PromptRestartStudio) {
-		console.log("Rofresh plugin successfully installed!");
-		console.log("Please restart Roblox Studio.");
-	}
-	process.exit();
-} else {
-	rofresh.addProject(DEFAULT_PROJECT_DIR, true);
-	rofresh.start();
 }
+
+main();

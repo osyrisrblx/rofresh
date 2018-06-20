@@ -1,16 +1,22 @@
-export interface Partition {
-	path: string;
-	target: string;
-}
+import iots = require("io-ts");
 
-export interface RofreshConfig {
-	name: string;
-	placeIds?: Array<number>;
-	allowAnyPlaceId?: boolean;
-	partitions: {
-		[index: string]: Partition | undefined;
-	};
-}
+export const PartitionIO = iots.interface({
+	path: iots.string,
+	target: iots.string,
+});
+
+export const RofreshConfigIO = iots.intersection([
+	iots.interface({
+		name: iots.string,
+	}),
+	iots.partial({
+		allowAnyPlaceId: iots.boolean,
+		partitions: iots.dictionary(iots.string, PartitionIO),
+		placeIds: iots.array(iots.number),
+	}),
+]);
+
+export type RofreshConfig = iots.TypeOf<typeof RofreshConfigIO>;
 
 export interface Update {
 	path: Array<string>;
