@@ -138,7 +138,7 @@ export default class Project {
 
 		RofreshConfigIO.decode(configJson)
 			.map(config => this.applyConfig(config))
-			.mapLeft(errors => errors.forEach(error => console.log(error.value)));
+			.mapLeft(errors => console.log("errors", errors));
 	}
 
 	public async fullSyncToStudio(client: Client) {

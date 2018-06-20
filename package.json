@@ -1,6 +1,6 @@
 {
 	"name": "rofresh",
-	"version": "1.0.46",
+	"version": "1.0.47",
 	"description": "An automated sync plugin for Roblox Studio",
 	"main": "out/rofresh.js",
 	"typings": "typings/rofresh.d.ts",
