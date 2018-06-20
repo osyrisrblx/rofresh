@@ -48,7 +48,7 @@ export default class Partition {
 		public readonly target: string,
 	) {
 		this.rbxPath = target.split(RBX_SEPARATOR);
-		fs.stat(directory).then(stats => {
+		fs.stat(this.directory).then(stats => {
 			if (stats.isFile()) {
 				this.isSingleFile = true;
 			}
@@ -177,7 +177,7 @@ export default class Partition {
 				.on("change", (filePath: string) => {
 					this.syncChangeToStudio(filePath);
 				});
-			console.log(this.project.name, this.name, "full sync");
+			console.log("full sync", this.project.name, this.name);
 			Client.instances
 				.filter(client => this.project.isValidPlaceId(client.placeId))
 				.forEach(client => this.fullSyncToStudio(client));

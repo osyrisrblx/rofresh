@@ -124,36 +124,40 @@ coroutine.wrap(function()
 				print("HttpEnabled, begin sync..")
 			end
 
-			local payloadOrError
-			success, payloadOrError = pcall(function()
-				return HttpService:JSONDecode(rawJsonOrError)
-			end)
-			Benchmark("DECODED", n)
-			if success then
-				local payload = payloadOrError
-				if not payload.error then
-					for i = 1, #payload do
-						local projectPayload = payload[i]
-						assert(projectPayload.projectName and projectPayload.projectName ~= "")
-						assert(projectPayload.changes)
+			if string.len(rawJsonOrError) > 0 then
+				local payloadOrError
+				success, payloadOrError = pcall(function()
+					return HttpService:JSONDecode(rawJsonOrError)
+				end)
+				Benchmark("DECODED", n)
+				if success then
+					local payload = payloadOrError
+					if not payload.error then
+						for i = 1, #payload do
+							local projectPayload = payload[i]
+							assert(projectPayload.projectName and projectPayload.projectName ~= "")
+							assert(projectPayload.changes)
 
-						local project = Project.instances[projectPayload.projectName]
-						if not project then
-							project = Project.new(projectPayload.projectName, projectPayload.tagOverride)
-						end
+							local project = Project.instances[projectPayload.projectName]
+							if not project then
+								project = Project.new(projectPayload.projectName, projectPayload.tagOverride)
+							end
 
-						if projectPayload.changes or projectPayload.initial then
-							project:processChanges(projectPayload.changes, projectPayload.initial)
+							if projectPayload.changes or projectPayload.initial then
+								project:processChanges(projectPayload.changes, projectPayload.initial)
+							end
 						end
+						Benchmark("PROCESSED", n)
+					else
+						-- do throttle
+						success = false
+						warn("Server Error", payload.error)
 					end
-					Benchmark("PROCESSED", n)
 				else
-					-- do throttle
-					success = false
-					warn("Server Error", payload.error)
+					warn("JSON Error", payloadOrError, #rawJsonOrError, rawJsonOrError)
 				end
 			else
-				warn("JSON Error", payloadOrError, #rawJsonOrError, rawJsonOrError)
+				success = false
 			end
 		else
 			-- HttpService.HttpEnabled prompt

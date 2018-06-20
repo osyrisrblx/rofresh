@@ -71,53 +71,87 @@ export default class Project {
 	}
 
 	private async applyConfig(config: RofreshConfig) {
+		let restartAll = false;
+		const restartIds = new Set<number>();
 		this.name = config.name;
-		this.allowAnyPlaceId = config.allowAnyPlaceId === true;
-		if (!this.allowAnyPlaceId) {
-			this._placeIds = new Set<number>(config.placeIds);
+		// normalize falsey -> false
+		if (config.allowAnyPlaceId === undefined) {
+			config.allowAnyPlaceId = false;
 		}
-		const configPartitions = config.partitions || DEFAULT_PARTITIONS;
+		restartAll = restartAll || config.allowAnyPlaceId !== this.allowAnyPlaceId;
+		this.allowAnyPlaceId = config.allowAnyPlaceId === true;
+		if (!this.allowAnyPlaceId && config.placeIds) {
+			for (const placeId of this.placeIds) {
+				if (config.placeIds.indexOf(placeId) === -1) {
+					this._placeIds.delete(placeId);
+				}
+			}
+
+			for (const placeId of config.placeIds) {
+				if (!this.placeIds.has(placeId)) {
+					this._placeIds.add(placeId);
+					restartIds.add(placeId);
+				}
+			}
+		}
+
+		const configPartitions = new Array<{
+			name: string;
+			path: string;
+			target: string;
+		}>();
 
 		// resolve paths
-		for (const name in configPartitions) {
-			const info = configPartitions[name];
-			info.path = path.resolve(this.directory, info.path);
+		const partitionMap = config.partitions || DEFAULT_PARTITIONS;
+		for (const name in partitionMap) {
+			configPartitions.push({
+				name,
+				path: path.resolve(this.directory, partitionMap[name].path),
+				target: partitionMap[name].target,
+			});
 		}
 
 		// remove old partitions
 		for (let i = this.partitions.length - 1; i >= 0; i--) {
-			const partition = this.partitions[i];
+			const part = this.partitions[i];
 			let found = false;
-			for (const name in configPartitions) {
-				const info = configPartitions[name];
-				if (partition.name === name && partition.directory === info.path && partition.target === info.target) {
+			for (const info of configPartitions) {
+				if (part.name === info.name && part.directory === info.path && part.target === info.target) {
 					found = true;
 					break;
 				}
 			}
 			if (!found) {
-				partition.stop();
 				this.partitions.splice(i, 1);
+				part.stop();
 			}
 		}
 
 		// add new partitions
-		for (const name in configPartitions) {
-			const info = configPartitions[name];
+		for (const info of configPartitions) {
 			let found = false;
-			for (const partition of this.partitions) {
-				if (partition.name === name && partition.directory === info.path && partition.target === info.target) {
+			for (const part of this.partitions) {
+				if (part.name === info.name && part.directory === info.path && part.target === info.target) {
 					found = true;
 					break;
 				}
 			}
-			if (!found) {
-				const partition = new Partition(this, name, info.path, info.target);
+			if (!found && (await fs.exists(info.path))) {
+				const partition = new Partition(this, info.name, info.path, info.target);
 				this.partitions.push(partition);
-				if (this.isRunning) {
+				if (this.isRunning && !restartAll) {
 					partition.start();
 				}
 			}
+		}
+
+		if (restartAll && this.isRunning) {
+			this.partitions.forEach(partition => partition.stop());
+			this.partitions.forEach(partition => partition.start());
+		} else if (this.isRunning) {
+			Client.instances
+				.filter(client => restartIds.has(client.placeId))
+				.forEach(client => this.partitions.forEach(partition => partition.fullSyncToStudio(client)));
 		}
 	}
 
@@ -154,7 +188,7 @@ export default class Project {
 
 	public start() {
 		if (!this.isRunning) {
-			console.log("watch", this.directory, [...this.placeIds].toString());
+			console.log("watch", "project", this.directory, [...this.placeIds].toString());
 			this.isRunning = true;
 			this.partitions.forEach(partition => partition.start());
 		}
@@ -162,7 +196,7 @@ export default class Project {
 
 	public stop() {
 		if (this.isRunning) {
-			console.log("stop watch", this.directory, [...this.placeIds].toString());
+			console.log("stop watch", "project", this.directory, [...this.placeIds].toString());
 			this.isRunning = false;
 			this.partitions.forEach(partition => partition.stop());
 		}
