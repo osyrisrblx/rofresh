@@ -177,6 +177,7 @@ export default class Partition {
 				.on("change", (filePath: string) => {
 					this.syncChangeToStudio(filePath);
 				});
+			console.log(this.project.name, this.name, "full sync");
 			Client.instances
 				.filter(client => this.project.isValidPlaceId(client.placeId))
 				.forEach(client => this.fullSyncToStudio(client));
