@@ -98,13 +98,12 @@ export function isRunning() {
 /**
  * adds a project directory to rofresh
  */
-export function addProject(dir: string, onlyIfNone = false) {
-	if (!onlyIfNone || Project.instances.length === 0) {
-		if (!Project.instances.reduce((accum, value) => accum || value.directory === dir, false)) {
-			const project = new Project(dir);
-			if (server.enabled) {
-				project.start();
-			}
+export function addProject(dir: string) {
+	dir = path.resolve(dir);
+	if (!Project.instances.reduce((accum, value) => accum || value.directory === dir, false)) {
+		const project = new Project(dir);
+		if (server.enabled) {
+			project.start();
 		}
 	}
 }

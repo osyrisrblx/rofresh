@@ -24,8 +24,6 @@ export default class Project {
 	private configWatcher?: chokidar.FSWatcher;
 	private isRunning = false;
 	private allowAnyPlaceId = false;
-	private hasEverBeenConfigured = false;
-	private previousPartitionsJson?: string;
 
 	private _placeIds = new Set<number>();
 	public readonly placeIds: ReadonlySet<number> = this._placeIds;
@@ -33,12 +31,14 @@ export default class Project {
 	public readonly directory: string;
 	public name = "";
 
-	private configTasks = new Array<() => void>();
-
 	constructor(directory: string) {
 		Project._instances.push(this);
 		this.directory = path.resolve(directory);
-		if (!fs.existsSync(this.directory)) {
+		this.setup();
+	}
+
+	private async setup() {
+		if (!(await fs.exists(this.directory))) {
 			throw new Error(util.format("Could not find project directory! [ %s ]", this.directory));
 		}
 		const configPath = path.join(this.directory, CONFIG_FILE_NAME);
@@ -76,31 +76,47 @@ export default class Project {
 			this._placeIds = new Set<number>(config.placeIds);
 		}
 		const configPartitions = config.partitions || DEFAULT_PARTITIONS;
-		const partitionsJson = JSON.stringify(configPartitions);
-		if (this.previousPartitionsJson !== partitionsJson) {
-			this.previousPartitionsJson = partitionsJson;
-			const wasRunning = this.isRunning;
-			if (wasRunning) {
-				this.stop();
-			}
-			this.partitions.splice(0, this.partitions.length);
-			for (const partitionName in configPartitions) {
-				const partitionInfo = configPartitions[partitionName];
-				if (partitionInfo) {
-					const partitionPath = path.join(this.directory, partitionInfo.path);
-					const partition = new Partition(this, partitionName, partitionPath, partitionInfo.target);
-					this.partitions.push(partition);
-					if (this.isRunning) {
-						partition.start();
-					}
+
+		// resolve paths
+		for (const name in configPartitions) {
+			const info = configPartitions[name];
+			info.path = path.resolve(this.directory, info.path);
+		}
+
+		// remove old partitions
+		for (let i = this.partitions.length - 1; i >= 0; i--) {
+			const partition = this.partitions[i];
+			let found = false;
+			for (const name in configPartitions) {
+				const info = configPartitions[name];
+				if (partition.name === name && partition.directory === info.path && partition.target === info.target) {
+					found = true;
+					break;
 				}
 			}
-			if (wasRunning) {
-				this.start();
+			if (!found) {
+				partition.stop();
+				this.partitions.splice(i, 1);
 			}
 		}
-		this.hasEverBeenConfigured = true;
-		if (this.configTasks.length > 0) {
+
+		// add new partitions
+		for (const name in configPartitions) {
+			const info = configPartitions[name];
+			let found = false;
+			for (const partition of this.partitions) {
+				if (partition.name === name && partition.directory === info.path && partition.target === info.target) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				const partition = new Partition(this, name, info.path, info.target);
+				this.partitions.push(partition);
+				if (this.isRunning) {
+					partition.start();
+				}
+			}
 		}
 	}
 
@@ -122,16 +138,10 @@ export default class Project {
 
 		RofreshConfigIO.decode(configJson)
 			.map(config => this.applyConfig(config))
-			.mapLeft(errors => {
-				errors.forEach(error => console.log(error.value));
-			});
+			.mapLeft(errors => errors.forEach(error => console.log(error.value)));
 	}
 
 	public async fullSyncToStudio(client: Client) {
-		if (!this.hasEverBeenConfigured) {
-			setTimeout(() => this.fullSyncToStudio(client), 10);
-			return;
-		}
 		const promises = new Array<Promise<Array<Change>>>();
 		this.partitions.forEach(partition => promises.push(partition.getChangesRecursive()));
 		client.syncToStudio(
@@ -150,10 +160,6 @@ export default class Project {
 	public async syncChangesFromStudio(changes: Array<Change>) {}
 
 	public start() {
-		if (!this.hasEverBeenConfigured) {
-			setTimeout(() => this.start(), 10);
-			return;
-		}
 		if (!this.isRunning) {
 			console.log("watch", this.directory, [...this.placeIds].toString());
 			this.isRunning = true;

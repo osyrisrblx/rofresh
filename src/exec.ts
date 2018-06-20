@@ -15,17 +15,15 @@ async function main() {
 	const pkgVersion = JSON.parse(await fs.readFile(path.join(__dirname, "..", "package.json"), { encoding: "utf8" }))
 		.version as string;
 
+	const projectFolders = new Array<string>();
+
 	commander
 		.version(pkgVersion, "-v, --version")
 		.arguments("[dir...]")
 		.option("-i --install [dir]", "Install Studio Plugin Automatically")
 		.action((folders: Array<string>) => {
 			for (const folder of folders) {
-				if (fs.existsSync(folder)) {
-					rofresh.addProject(folder);
-				} else {
-					throw new Error(util.format("Path does not exist [ %s ]", folder));
-				}
+				projectFolders.push(folder);
 			}
 		})
 		.parse(process.argv);
@@ -50,7 +48,17 @@ async function main() {
 			console.log("Please restart Roblox Studio.");
 		}
 	} else {
-		rofresh.addProject(DEFAULT_PROJECT_DIR, true);
+		let projectsAdded = 0;
+		for (const dir of projectFolders) {
+			if (await fs.exists(dir)) {
+				rofresh.addProject(dir);
+				projectsAdded++;
+			}
+		}
+
+		if (projectsAdded === 0) {
+			rofresh.addProject(DEFAULT_PROJECT_DIR);
+		}
 		rofresh.start();
 	}
 }

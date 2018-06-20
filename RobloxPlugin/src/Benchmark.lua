@@ -1,4 +1,4 @@
--- simple benchmarking module8
+-- simple benchmarking module
 
 local prevTime
 

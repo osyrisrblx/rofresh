@@ -44,9 +44,9 @@ export default class Partition {
 		private project: Project,
 		public readonly name: string,
 		public readonly directory: string,
-		rbxTarget: string,
+		public readonly target: string,
 	) {
-		this.rbxPath = rbxTarget.split(RBX_SEPARATOR);
+		this.rbxPath = target.split(RBX_SEPARATOR);
 		fs.stat(directory).then(stats => {
 			if (stats.isFile()) {
 				this.isSingleFile = true;
