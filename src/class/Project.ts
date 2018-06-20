@@ -143,15 +143,6 @@ export default class Project {
 		}
 	}
 
-	public async fullSyncToStudio(client: Client) {
-		const promises = new Array<Promise<Array<Change>>>();
-		this.partitions.forEach(partition => promises.push(partition.getChangesRecursive()));
-		client.syncToStudio(
-			this.name,
-			(await Promise.all(promises)).reduce((accum, value) => accum.concat(value), new Array<Change>()),
-		);
-	}
-
 	public async distributeChangeToStudio(change: Change | Remove) {
 		Client.instances
 			.filter(client => this.isValidPlaceId(client.placeId))
