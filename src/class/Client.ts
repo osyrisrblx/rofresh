@@ -1,4 +1,5 @@
 import http = require("http");
+import util = require("util");
 
 import { Change, ProjectPayload, Remove } from "../types";
 import { writeJson } from "../utility";
@@ -18,7 +19,7 @@ export default class Client {
 
 	constructor(public id: string, public placeId: number) {
 		Client._instances.push(this);
-		this.fullSyncToStudio();
+		this.fullSyncAllToStudio();
 	}
 
 	private getProjectQueue(projectName: string) {
@@ -30,16 +31,17 @@ export default class Client {
 		return projectQueue;
 	}
 
-	public async fullSyncToStudio() {
-		Project.instances.filter(project => project.isValidPlaceId(this.placeId)).forEach(async project => {
-			this.getProjectQueue(project.name).initial = true;
-			const promises = new Array<Promise<Array<Change>>>();
-			project.partitions.forEach(partition => promises.push(partition.getChangesRecursive()));
-			this.syncToStudio(
-				project.name,
-				(await Promise.all(promises)).reduce((accum, value) => accum.concat(value), new Array<Change>()),
-			);
-		});
+	public async fullSyncProjectToStudio(project: Project) {
+		const changes = new Array<Promise<Change>>();
+		await Promise.all(project.partitions.map(partition => partition.addChangesRecursive(changes)));
+		this.getProjectQueue(project.name).initial = true;
+		this.syncToStudio(project.name, await Promise.all(changes));
+	}
+
+	public async fullSyncAllToStudio() {
+		Project.instances
+			.filter(project => project.isValidPlaceId(this.placeId))
+			.forEach(project => this.fullSyncProjectToStudio(project));
 	}
 
 	public remove() {
@@ -54,6 +56,9 @@ export default class Client {
 		if (this.response) {
 			const payload = new Array<ProjectPayload>();
 
+			let totalChanges = 0;
+			let totalProjects = 0;
+
 			for (const projectName of this.sendQueue.keys()) {
 				const projectQueue = this.sendQueue.get(projectName);
 				if (projectQueue === undefined) {
@@ -64,16 +69,19 @@ export default class Client {
 					const change = projectQueue.changes.get(key);
 					if (change) {
 						changes.push(change);
+						totalChanges++;
 						projectQueue.changes.delete(key);
 					}
 				}
-				if (changes.length > 0) {
+				if (changes.length > 0 || projectQueue.initial) {
+					totalProjects++;
 					payload.push({ projectName, changes, initial: projectQueue.initial });
 					projectQueue.initial = false;
 				}
 			}
 
 			if (payload.length > 0) {
+				console.log("send", util.format("totalProjects: %d, totalChanges: %d", totalProjects, totalChanges));
 				const res = this.response;
 				this.response = undefined;
 				writeJson(res, payload);

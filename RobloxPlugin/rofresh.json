@@ -5,10 +5,6 @@
 		"src": {
 			"path": "src",
 			"target": "ReplicatedStorage.RofreshPlugin"
-		},
-		"src2": {
-			"path": "src",
-			"target": "ReplicatedStorage.RofreshPlugin"
 		}
 	}
 }

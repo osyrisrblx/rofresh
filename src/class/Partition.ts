@@ -55,40 +55,35 @@ export default class Partition {
 		});
 	}
 
-	private async getPathsRecursive(dir = this.directory, paths = new Array<string>()) {
+	public async addChangesRecursive(changes = new Array<Promise<Change>>(), dir = this.directory) {
 		if (this.isSingleFile) {
-			paths.push(dir);
+			changes.push(this.getChangeFromFile(dir));
 		} else {
+			const promises = new Array<Promise<void>>();
 			for (const fileName of await fs.readdir(dir)) {
 				const filePath = path.resolve(dir, fileName);
 				if ((await fs.stat(filePath)).isDirectory()) {
-					await this.getPathsRecursive(filePath, paths);
+					promises.push(this.addChangesRecursive(changes, filePath));
 				} else if (filePath.match(Language.ignoreRegExp) === null) {
-					paths.push(filePath);
+					changes.push(this.getChangeFromFile(filePath));
 				}
 			}
+			await Promise.all(promises);
 		}
-		return paths;
 	}
 
-	public async getChangesRecursive() {
-		return Promise.all((await this.getPathsRecursive()).map(filePath => this.getChangeFromFile(filePath)));
-	}
-
-	private async getUpdateFromFile(filePath: string): Promise<Update> {
+	private getUpdateFromFile(filePath: string): Update {
 		const fullName = path.basename(filePath, path.extname(filePath));
 		const fileTypeExt = path
 			.extname(fullName)
-			.replace(/^\.+/, "")
+			.substr(1) // remove leading period
 			.toLowerCase();
 
 		let changePath = this.rbxPath.concat(path.relative(this.directory, filePath).split(path.sep));
 		changePath.pop();
-		changePath = changePath.filter(value => value.length > 0);
-
-		changePath = changePath.reduce((accum, value) => {
-			return accum.concat(...value.split("."));
-		}, new Array<string>());
+		changePath = changePath
+			.filter(value => value.length > 0)
+			.reduce((accum, value) => accum.concat(...value.split(".")), new Array<string>());
 
 		let changeType = getTypeBySubExtension(fileTypeExt.toLowerCase());
 		let fileName = path.basename(fullName, "." + fileTypeExt);
@@ -109,7 +104,7 @@ export default class Partition {
 	}
 
 	private async getRemoveFromFile(filePath: string): Promise<Remove> {
-		const update = await this.getUpdateFromFile(filePath);
+		const update = this.getUpdateFromFile(filePath);
 		return {
 			path: update.path,
 			source: null,
@@ -118,7 +113,7 @@ export default class Partition {
 	}
 
 	private async getChangeFromFile(filePath: string): Promise<Change> {
-		const update = await this.getUpdateFromFile(filePath);
+		const update = this.getUpdateFromFile(filePath);
 		const ext = path.extname(filePath);
 
 		let language: Language | undefined;
@@ -151,13 +146,15 @@ export default class Partition {
 	}
 
 	public async fullSyncToStudio(client: Client) {
-		client.syncToStudio(this.project.name, await this.getChangesRecursive());
+		const changes = new Array<Promise<Change>>();
+		await this.addChangesRecursive(changes);
+		client.syncToStudio(this.project.name, await Promise.all(changes));
 	}
 
 	public start() {
 		if (!this.isRunning) {
 			this.isRunning = true;
-			console.log("watch", "partition", this.name, path.relative(this.project.directory, this.directory));
+			console.log("start", "partition", this.name, path.relative(this.project.directory, this.directory));
 			this.watcher = chokidar
 				.watch(this.directory, {
 					ignoreInitial: true,
@@ -177,7 +174,6 @@ export default class Partition {
 				.on("change", (filePath: string) => {
 					this.syncChangeToStudio(filePath);
 				});
-			console.log("full sync", this.project.name, this.name);
 			Client.instances
 				.filter(client => this.project.isValidPlaceId(client.placeId))
 				.forEach(client => this.fullSyncToStudio(client));

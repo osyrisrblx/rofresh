@@ -33,7 +33,7 @@ function getClient(req: http.IncomingMessage) {
 	if (client) {
 		if (client.placeId !== placeId) {
 			client.placeId = placeId;
-			client.fullSyncToStudio();
+			client.fullSyncAllToStudio();
 		}
 	} else {
 		client = new Client(clientId, placeId);
@@ -124,7 +124,7 @@ export function removeProject(dir: string) {
  */
 export function stop() {
 	if (server.enabled) {
-		console.log("stop");
+		console.log("stop", "server");
 		server.enabled = false;
 		Project.instances.forEach(project => project.stop());
 		Client.instances.forEach(client => client.remove());
@@ -136,7 +136,7 @@ export function stop() {
  */
 export function start() {
 	if (!server.enabled) {
-		console.log("start");
+		console.log("start", "server");
 		server.enabled = true;
 		Project.instances.forEach(project => project.start());
 	}

@@ -8,6 +8,8 @@ const ROBLOX_STUDIO_PROCESS_NAME = "RobloxStudioBeta";
 const MAX_FILE_RETRY = 5;
 const FILE_RETRY_DELAY = 10; // ms
 
+const LATEST_PLUGIN_VERSION = 1;
+
 function decircularJson(object: any) {
 	let cache: Array<any> | null = new Array<any>();
 	const result = JSON.stringify(object, (_, value) => {
@@ -84,7 +86,7 @@ export async function isProcessRunning(name: string) {
 	);
 }
 
-async function getPluginInstallPathWin32() {
+async function getPluginFolderWin32() {
 	const appData = process.env.LOCALAPPDATA;
 	if (appData) {
 		const robloxFolder = path.join(appData, "Roblox");
@@ -93,12 +95,12 @@ async function getPluginInstallPathWin32() {
 			if (!(await fs.exists(pluginsFolder))) {
 				await fs.mkdir(pluginsFolder);
 			}
-			return path.join(pluginsFolder, PLUGIN_FILE_NAME);
+			return pluginsFolder;
 		}
 	}
 }
 
-async function getPluginInstallPathDarwin() {
+async function getPluginFolderDarwin() {
 	return undefined;
 }
 
@@ -117,14 +119,15 @@ export async function installPlugin(installDir?: string) {
 	if (!(await fs.exists(pluginPath))) {
 		throw new Error("Plugin file missing!");
 	}
-	let installPath: string | undefined;
+
+	let pluginFolder: string | undefined;
 	if (installDir) {
-		installPath = path.join(installDir, "Plugins", PLUGIN_FILE_NAME);
+		pluginFolder = path.join(installDir, "Plugins", PLUGIN_FILE_NAME);
 	} else {
 		if (process.platform === "win32") {
-			installPath = await getPluginInstallPathWin32();
+			pluginFolder = await getPluginFolderWin32();
 		} else if (process.platform === "darwin") {
-			installPath = await getPluginInstallPathDarwin();
+			pluginFolder = await getPluginFolderDarwin();
 			// TODO
 			return PluginInstallResult.Failure;
 		} else {
@@ -132,14 +135,36 @@ export async function installPlugin(installDir?: string) {
 		}
 	}
 
-	// validate paths
-	if (!installPath || !(await fs.exists(pluginPath))) {
+	if (pluginFolder === undefined) {
 		return PluginInstallResult.Failure;
+	}
+
+	const pluginFileExt = path.extname(PLUGIN_FILE_NAME);
+	const pluginFileBaseName = path.basename(PLUGIN_FILE_NAME, pluginFileExt);
+	const installPath = path.join(pluginFolder, pluginFileBaseName + "_" + LATEST_PLUGIN_VERSION + pluginFileExt);
+	let currentFound = false;
+	for (const fileName of await fs.readdir(pluginFolder)) {
+		const filePath = path.join(pluginFolder, fileName);
+		const matches = fileName.match(new RegExp("^" + PLUGIN_FILE_NAME + "_(\\d+)$"));
+		if (!matches) {
+			continue;
+		}
+		const version = parseInt(matches[1], 10);
+		if (!isNaN(version)) {
+			if (!currentFound && version >= LATEST_PLUGIN_VERSION) {
+				currentFound = true;
+			} else {
+				fs.unlink(filePath);
+			}
+		}
+	}
+
+	if (currentFound) {
+		return PluginInstallResult.Success;
 	}
 
 	// copy
 	await fs.writeFile(installPath, await fs.readFile(pluginPath));
-
 	if (await isProcessRunning(ROBLOX_STUDIO_PROCESS_NAME)) {
 		return PluginInstallResult.PromptRestartStudio;
 	} else {

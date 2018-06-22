@@ -124,6 +124,7 @@ export default class Project {
 			if (!found) {
 				this.partitions.splice(i, 1);
 				part.stop();
+				// TODO: clean studio files for old partitions
 			}
 		}
 
@@ -188,7 +189,7 @@ export default class Project {
 
 	public start() {
 		if (!this.isRunning) {
-			console.log("watch", "project", this.directory, [...this.placeIds].toString());
+			console.log("start", "project", this.directory);
 			this.isRunning = true;
 			this.partitions.forEach(partition => partition.start());
 		}
@@ -196,7 +197,7 @@ export default class Project {
 
 	public stop() {
 		if (this.isRunning) {
-			console.log("stop watch", "project", this.directory, [...this.placeIds].toString());
+			console.log("stop", "project", this.directory);
 			this.isRunning = false;
 			this.partitions.forEach(partition => partition.stop());
 		}

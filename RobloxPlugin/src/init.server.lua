@@ -12,7 +12,7 @@ local Benchmark = require(script.Benchmark)
 -- config constants
 local PORT = 8888
 local MAX_REQUESTS_PER_MINUTE = 60
-local DEBUG = true
+local DEBUG = false
 local OUTPUT_PREFIX = "[Rofresh]"
 
 -- static constants

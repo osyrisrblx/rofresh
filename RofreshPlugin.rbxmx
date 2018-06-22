@@ -1,12 +1,12 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Script" referent="RBXD871F9F170E34040ADE693D6C4B344C6">
+	<Item class="Script" referent="RBX0517B3C002C0418D8EE3E75748A380DB">
 		<Properties>
 			<bool name="Disabled">false</bool>
 			<Content name="LinkedSource"><null></null></Content>
 			<string name="Name">RofreshPlugin</string>
-			<string name="ScriptGuid">{5D461C49-4C4D-49BC-9A8D-6EC64B285FD3}</string>
+			<string name="ScriptGuid">{A8A895C7-4187-4E72-9789-3588403E98DD}</string>
 			<ProtectedString name="Source"><![CDATA[-- Rofresh Studio Plugin
 
 -- services
@@ -16,6 +16,7 @@ local Selection = game:GetService("Selection")
 
 -- imports
 local Project = require(script.Project)
+local Benchmark = require(script.Benchmark)
 
 -- config constants
 local PORT = 8888
@@ -30,10 +31,11 @@ local HEADERS = { ["client-id"] = string.gsub(HttpService:GenerateGUID(false), "
 
 -- error constants
 local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game settings"
-local CURL_CONNECT_ERROR = "CURL error (curl_easy_perform): Couldn't connect to server (7)"
-local CURL_TIMEOUT_ERROR = "CURL error (curl_easy_perform): Timeout was reached (28)"
-local CURL_NOTHING_ERROR = "CURL error (curl_easy_perform): Server returned nothing (no headers, no data) (52)"
-local CURL_RECEIVE_ERROR = "CURL error (curl_easy_perform): Failure when receiving data from the peer (56)"
+local CURL_PREFIX = "CURL error (curl_easy_perform): "
+local CURL_CONNECT_ERROR = CURL_PREFIX .. "Couldn't connect to server (7)"
+local CURL_TIMEOUT_ERROR = CURL_PREFIX .. "Timeout was reached (28)"
+local CURL_NOTHING_ERROR = CURL_PREFIX .. "Server returned nothing (no headers, no data) (52)"
+local CURL_RECEIVE_ERROR = CURL_PREFIX .. "Failure when receiving data from the peer (56)"
 
 -- output helper functions
 local function wrapPrinter(printer)
@@ -97,20 +99,24 @@ local function isJobValid(myJobId)
 	return myJobId == jobId and _G.rofresh.pluginId == pluginId
 end
 
+local n = 0
 
 -- main loop
 coroutine.wrap(function()
+	Benchmark("START")
 	while RunService.Heartbeat:Wait() and _G.rofresh.pluginId == pluginId do
+		n = n + 1
 		local myJobId = {}
 		jobId = myJobId
 
-		_G.rofresh.debugPrint("Sending request..")
+		Benchmark("SEND", n)
 		local success, rawJsonOrError
 		local isFinished = false
 		coroutine.wrap(function()
 			success, rawJsonOrError = pcall(function()
 				return HttpService:GetAsync(SERVER_URL, true, HEADERS)
 			end)
+			Benchmark("REAL RECIEVE", n)
 			isFinished = true
 		end)()
 		while isJobValid(myJobId) and not isFinished do
@@ -119,7 +125,7 @@ coroutine.wrap(function()
 		if not isJobValid(myJobId) then
 			return
 		end
-		_G.rofresh.debugPrint("Recieved response!")
+		Benchmark("RECIEVE " .. string.len(rawJsonOrError), n)
 
 		if success then
 			if not httpEnabled then
@@ -127,34 +133,40 @@ coroutine.wrap(function()
 				print("HttpEnabled, begin sync..")
 			end
 
-			local payloadOrError
-			success, payloadOrError = pcall(function()
-				return HttpService:JSONDecode(rawJsonOrError)
-			end)
-			if success then
-				local payload = payloadOrError
-				if not payload.error then
-					for i = 1, #payload do
-						local projectPayload = payload[i]
-						assert(projectPayload.projectName and projectPayload.projectName ~= "")
-						assert(projectPayload.changes)
+			if string.len(rawJsonOrError) > 0 then
+				local payloadOrError
+				success, payloadOrError = pcall(function()
+					return HttpService:JSONDecode(rawJsonOrError)
+				end)
+				Benchmark("DECODED", n)
+				if success then
+					local payload = payloadOrError
+					if not payload.error then
+						for i = 1, #payload do
+							local projectPayload = payload[i]
+							assert(projectPayload.projectName and projectPayload.projectName ~= "")
+							assert(projectPayload.changes)
 
-						local project = Project.instances[projectPayload.projectName]
-						if not project then
-							project = Project.new(projectPayload.projectName, projectPayload.tagOverride)
-						end
+							local project = Project.instances[projectPayload.projectName]
+							if not project then
+								project = Project.new(projectPayload.projectName, projectPayload.tagOverride)
+							end
 
-						if projectPayload.changes or projectPayload.initial then
-							project:processChanges(projectPayload.changes, projectPayload.initial)
+							if projectPayload.changes or projectPayload.initial then
+								project:processChanges(projectPayload.changes, projectPayload.initial)
+							end
 						end
+						Benchmark("PROCESSED", n)
+					else
+						-- do throttle
+						success = false
+						warn("Server Error", payload.error)
 					end
 				else
-					-- do throttle
-					success = false
-					warn("Server Error", payload.error)
+					warn("JSON Error", payloadOrError, #rawJsonOrError, rawJsonOrError)
 				end
 			else
-				warn("JSON Error", payloadOrError, #rawJsonOrError, rawJsonOrError)
+				success = false
 			end
 		else
 			-- HttpService.HttpEnabled prompt
@@ -175,6 +187,7 @@ coroutine.wrap(function()
 				warn("Connection Error", rawJsonOrError)
 			end
 		end
+		Benchmark("DONE", n)
 
 		-- dont waste requests
 		if not success then
@@ -196,11 +209,42 @@ end)
 print("Rofresh Studio Plugin running..")]]></ProtectedString>
 			<BinaryString name="Tags">LlJvZnJlc2hfUm9mcmVzaFBsdWdpbg==</BinaryString>
 		</Properties>
-		<Item class="ModuleScript" referent="RBX86649AC71B644BFE887F6C8C1F4B3D7B">
+		<Item class="ModuleScript" referent="RBX2949418D51424EEE93D2C3530CC1D1D3">
+			<Properties>
+				<Content name="LinkedSource"><null></null></Content>
+				<string name="Name">Benchmark</string>
+				<string name="ScriptGuid">{22E4BF77-BF26-48EB-81D7-62F269FD71B2}</string>
+				<ProtectedString name="Source"><![CDATA[-- simple benchmarking module
+
+local prevTime
+
+local function round(num, numDecimalPlaces)
+	local mult = 10^(numDecimalPlaces or 0)
+	return math.floor(num * mult + 0.5) / mult
+end
+
+return function(label, n)
+	if not label then
+		label = "UNKNOWN" .. (n and  ("[" .. n .. "]") or "")
+	end
+	local nowTime = tick()
+	local diffStr = ""
+	if prevTime then
+		local diff = nowTime - prevTime
+		assert(diff > 0)
+		diffStr = "(+" .. round(diff, 4) .. ")"
+	end
+	_G.rofresh.debugPrint("[BENCHMARK]", label, nowTime, diffStr)
+	prevTime = nowTime
+end]]></ProtectedString>
+				<BinaryString name="Tags">LlJvZnJlc2hfUm9mcmVzaFBsdWdpbg==</BinaryString>
+			</Properties>
+		</Item>
+		<Item class="ModuleScript" referent="RBX0A1740E9F03B4925BEF0FE41E5C8622B">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<string name="Name">Project</string>
-				<string name="ScriptGuid">{39B86A00-9B97-4695-9E95-58644FF01F26}</string>
+				<string name="ScriptGuid">{8A65DB75-D047-4E20-8247-AFD262CD771F}</string>
 				<ProtectedString name="Source"><![CDATA[-- Project class
 
 local CollectionService = game:GetService("CollectionService")
