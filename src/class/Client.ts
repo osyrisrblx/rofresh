@@ -81,7 +81,11 @@ export default class Client {
 			}
 
 			if (payload.length > 0) {
-				console.log("send", util.format("totalProjects: %d, totalChanges: %d", totalProjects, totalChanges));
+				console.log(
+					"send",
+					payload.map(value => value.projectName + (value.initial ? "*" : "")).toString(),
+					util.format("totalChanges: %d", totalChanges),
+				);
 				const res = this.response;
 				this.response = undefined;
 				writeJson(res, payload);
