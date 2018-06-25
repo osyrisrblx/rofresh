@@ -1,3 +1,4 @@
+import http = require("http");
 import io_ts = require("io-ts");
 
 export const PartitionIO = io_ts.interface({
@@ -17,6 +18,14 @@ export const RofreshConfigIO = io_ts.intersection([
 ]);
 
 export type RofreshConfig = io_ts.TypeOf<typeof RofreshConfigIO>;
+
+export type RouteCallback = (req: http.IncomingMessage, res: http.ServerResponse) => void;
+
+export interface Route {
+	readonly glob: string;
+	readonly callback: RouteCallback;
+	readonly method: string;
+}
 
 export interface Update {
 	path: Array<string>;

@@ -3,19 +3,12 @@ import util = require("util");
 
 import anymatch = require("anymatch");
 
+import { Route, RouteCallback } from "../types";
 import { writeError } from "../utility";
-
-export type RouteCallback = (req: http.IncomingMessage, res: http.ServerResponse) => void;
-
-export interface IRoute {
-	readonly glob: string;
-	readonly callback: RouteCallback;
-	readonly method: string;
-}
 
 export default class Server {
 	private httpServer?: http.Server;
-	private readonly routes = new Array<IRoute>();
+	private readonly routes = new Array<Route>();
 	public enabled = true;
 
 	constructor() {

@@ -100,7 +100,7 @@ export function isRunning() {
  */
 export function addProject(dir: string) {
 	dir = path.resolve(dir);
-	if (!Project.instances.reduce((accum, value) => accum || value.directory === dir, false)) {
+	if (!Project.instances.some(p => p.directory === dir)) {
 		const project = new Project(dir);
 		if (server.enabled) {
 			project.start();

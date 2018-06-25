@@ -7,7 +7,6 @@ local Selection = game:GetService("Selection")
 
 -- imports
 local Project = require(script.Project)
-local Benchmark = require(script.Benchmark)
 
 -- config constants
 local PORT = 8888
@@ -94,20 +93,17 @@ local n = 0
 
 -- main loop
 coroutine.wrap(function()
-	Benchmark("START")
 	while RunService.Heartbeat:Wait() and _G.rofresh.pluginId == pluginId do
 		n = n + 1
 		local myJobId = {}
 		jobId = myJobId
 
-		Benchmark("SEND", n)
 		local success, rawJsonOrError
 		local isFinished = false
 		coroutine.wrap(function()
 			success, rawJsonOrError = pcall(function()
 				return HttpService:GetAsync(SERVER_URL, true, HEADERS)
 			end)
-			Benchmark("REAL RECIEVE", n)
 			isFinished = true
 		end)()
 		while isJobValid(myJobId) and not isFinished do
@@ -116,7 +112,6 @@ coroutine.wrap(function()
 		if not isJobValid(myJobId) then
 			return
 		end
-		Benchmark("RECIEVE " .. string.len(rawJsonOrError), n)
 
 		if success then
 			if not httpEnabled then
@@ -129,7 +124,6 @@ coroutine.wrap(function()
 				success, payloadOrError = pcall(function()
 					return HttpService:JSONDecode(rawJsonOrError)
 				end)
-				Benchmark("DECODED", n)
 				if success then
 					local payload = payloadOrError
 					if not payload.error then
@@ -147,7 +141,6 @@ coroutine.wrap(function()
 								project:processChanges(projectPayload.changes, projectPayload.initial)
 							end
 						end
-						Benchmark("PROCESSED", n)
 					else
 						-- do throttle
 						success = false
@@ -178,7 +171,6 @@ coroutine.wrap(function()
 				warn("Connection Error", rawJsonOrError)
 			end
 		end
-		Benchmark("DONE", n)
 
 		-- dont waste requests
 		if not success then

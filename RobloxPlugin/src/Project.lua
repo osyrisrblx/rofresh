@@ -1,8 +1,9 @@
 -- Project class
 
+-- services
 local CollectionService = game:GetService("CollectionService")
 
--- Project constants
+-- constants
 local TAG_PREFIX = ".Rofresh_"
 local CONTAINER_NAME = "init"
 
@@ -171,7 +172,9 @@ function Project:processChanges(changes, initial)
 		local syncObjects = CollectionService:GetTagged(self.tag)
 		for _, object in pairs(syncObjects) do
 			if object:IsA("LuaSourceContainer") then
-				if not paths[getPathStr(object)] then
+				local pathStr = getPathStr(object)
+				if not paths[pathStr] then
+					_G.rofresh.debugPrint("REMOVE", pathStr)
 					self:unsync(object)
 				end
 			end

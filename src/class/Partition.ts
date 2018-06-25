@@ -42,17 +42,15 @@ export default class Partition {
 	private isSingleFile = false;
 
 	constructor(
-		private project: Project,
+		public readonly project: Project,
 		public readonly name: string,
 		public readonly directory: string,
 		public readonly target: string,
 	) {
 		this.rbxPath = target.split(RBX_SEPARATOR);
-		fs.stat(this.directory).then(stats => {
-			if (stats.isFile()) {
-				this.isSingleFile = true;
-			}
-		});
+		(async () => {
+			this.isSingleFile = (await fs.stat(this.directory)).isFile();
+		})();
 	}
 
 	public async addChangesRecursive(changes = new Array<Promise<Change>>(), dir = this.directory) {
@@ -159,11 +157,7 @@ export default class Partition {
 				.watch(this.directory, {
 					ignoreInitial: true,
 					ignored: (filePath: string, stat?: fs.Stats) =>
-						stat &&
-						!stat.isDirectory() &&
-						!Language.instances
-							.map(lang => lang.ext)
-							.reduce((accum, ext) => accum || filePath.endsWith(ext), false),
+						stat && !stat.isDirectory() && !Language.instances.some(lang => filePath.endsWith(lang.ext)),
 				})
 				.on("unlink", (filePath: string) => {
 					this.syncRemoveToStudio(filePath);
