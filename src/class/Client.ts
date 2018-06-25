@@ -32,10 +32,11 @@ export default class Client {
 	}
 
 	public async fullSyncProjectToStudio(project: Project) {
-		const changes = new Array<Promise<Change>>();
-		await Promise.all(project.partitions.map(partition => partition.addChangesRecursive(changes)));
+		const promises = new Array<Promise<Change>>();
+		await Promise.all(project.partitions.map(partition => partition.addChangesRecursive(promises)));
+		const changes = await Promise.all(promises);
 		this.getProjectQueue(project.name).initial = true;
-		this.syncToStudio(project.name, await Promise.all(changes));
+		this.syncToStudio(project.name, changes);
 	}
 
 	public async fullSyncAllToStudio() {
@@ -83,8 +84,9 @@ export default class Client {
 			if (payload.length > 0) {
 				console.log(
 					"send",
-					payload.map(value => value.projectName + (value.initial ? "*" : "")).toString(),
+					payload.map(value => value.projectName + (value.initial ? "*" : "")).join(", "),
 					util.format("totalChanges: %d", totalChanges),
+					this.placeId,
 				);
 				const res = this.response;
 				this.response = undefined;
