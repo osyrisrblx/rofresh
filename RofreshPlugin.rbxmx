@@ -1,18 +1,23 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Script" referent="RBX1BC84BE7B0A74FD2A52500BFE9B083C9">
+	<Item class="Script" referent="RBXB6B543004B62421AA7AD3B4FA819695C">
 		<Properties>
 			<bool name="Disabled">false</bool>
 			<Content name="LinkedSource"><null></null></Content>
 			<string name="Name">RofreshPlugin</string>
-			<string name="ScriptGuid">{ED9B9402-A916-40BE-A1E4-2921BC46493A}</string>
+			<string name="ScriptGuid">{7D893D82-BD79-4ED4-B09F-80A6B410EF83}</string>
 			<ProtectedString name="Source"><![CDATA[-- Rofresh Studio Plugin
 
 -- services
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
+
+-- early out
+if not RunService:IsEdit() then
+	return
+end
 
 -- imports
 local Project = require(script.Project)
@@ -73,12 +78,6 @@ do
 				end
 			end
 		end
-		--[[
-		HttpService:PostAsync(SERVER_URL, HttpService:JSONEncode({
-			projectName = "",
-			changes = changes,
-		}), Enum.HttpContentType.ApplicationJson, false, HEADERS)
-		]]
 	end)
 
 	-- TODO: remove
@@ -199,13 +198,13 @@ game:GetPropertyChangedSignal("PlaceId"):Connect(function()
 end)
 
 print("Rofresh Studio Plugin running..")]]></ProtectedString>
-			<BinaryString name="Tags">LlJvZnJlc2hfUm9mcmVzaFBsdWdpbg==</BinaryString>
+			<BinaryString name="Tags"></BinaryString>
 		</Properties>
-		<Item class="ModuleScript" referent="RBX8656F91240C3487C9B1BDE8CE8CBE64C">
+		<Item class="ModuleScript" referent="RBXA28BB86513B4449CB67AACBD188D4DFB">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<string name="Name">Project</string>
-				<string name="ScriptGuid">{7778ADB1-3317-461A-873A-AD802384C56E}</string>
+				<string name="ScriptGuid">{D991C627-16EB-4629-AFAB-CA499E85CFCB}</string>
 				<ProtectedString name="Source"><![CDATA[-- Project class
 
 -- services
@@ -302,20 +301,14 @@ function Project:getScriptObject(path, className, isContainer)
 		return
 	end
 	local parent = game
-	local pathStart = 1
-	local serviceName = path[1]
-	if serviceName then
-		-- used to create nonexistant services
-		pcall(function()
-			game = parent:GetService(serviceName)
-			pathStart = 2
-		end)
-	end
-
-	for i = pathStart, #path do
+	for i = 1, #path do
 		local object = parent:FindFirstChild(path[i])
 		if not object then
-			object = Instance.new("Folder", parent)
+			if parent == game then
+				object = game:GetService(path[i])
+			else
+				object = Instance.new("Folder", parent)
+			end
 			CollectionService:AddTag(object, self.tag)
 			object.Name = path[i]
 		end
@@ -409,7 +402,7 @@ function Project:getChangeFromScript(script)
 end
 
 return Project]]></ProtectedString>
-				<BinaryString name="Tags">LlJvZnJlc2hfUm9mcmVzaFBsdWdpbg==</BinaryString>
+				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
 	</Item>

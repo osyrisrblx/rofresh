@@ -94,20 +94,14 @@ function Project:getScriptObject(path, className, isContainer)
 		return
 	end
 	local parent = game
-	local pathStart = 1
-	local serviceName = path[1]
-	if serviceName then
-		-- used to create nonexistant services
-		pcall(function()
-			game = parent:GetService(serviceName)
-			pathStart = 2
-		end)
-	end
-
-	for i = pathStart, #path do
+	for i = 1, #path do
 		local object = parent:FindFirstChild(path[i])
 		if not object then
-			object = Instance.new("Folder", parent)
+			if parent == game then
+				object = game:GetService(path[i])
+			else
+				object = Instance.new("Folder", parent)
+			end
 			CollectionService:AddTag(object, self.tag)
 			object.Name = path[i]
 		end

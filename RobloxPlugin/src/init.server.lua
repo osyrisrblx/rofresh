@@ -5,6 +5,11 @@ local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
 
+-- early out
+if not RunService:IsEdit() then
+	return
+end
+
 -- imports
 local Project = require(script.Project)
 
@@ -64,12 +69,6 @@ do
 				end
 			end
 		end
-		--[[
-		HttpService:PostAsync(SERVER_URL, HttpService:JSONEncode({
-			projectName = "",
-			changes = changes,
-		}), Enum.HttpContentType.ApplicationJson, false, HEADERS)
-		]]
 	end)
 
 	-- TODO: remove
