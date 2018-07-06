@@ -9,12 +9,12 @@ import util = require("util");
 import commander = require("commander");
 import rofresh = require("./rofresh");
 
+import * as t from "io-ts";
+
 const DEFAULT_PROJECT_DIR = ".";
 
-async function main() {
-	const pkgVersion = JSON.parse(await fs.readFile(path.join(__dirname, "..", "package.json"), { encoding: "utf8" }))
-		.version as string;
-
+(async () => {
+	const pkgVersion = t.string.decode(require("../package.json").version).getOrElse("N/A");
 	const projectFolders = new Array<string>();
 
 	commander
@@ -61,6 +61,4 @@ async function main() {
 		}
 		rofresh.start();
 	}
-}
-
-main();
+})();

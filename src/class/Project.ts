@@ -31,6 +31,7 @@ export default class Project {
 	public readonly directory: string;
 	public readonly partitions = new Array<Partition>();
 	public name = "";
+	public loaded = false;
 
 	constructor(directory: string) {
 		Project._instances.push(this);
@@ -124,7 +125,7 @@ export default class Project {
 			if (!found) {
 				this.partitions.splice(i, 1);
 				part.stop();
-				// TODO: clean studio files for old partitions
+				// TODO: clean studio files for old partitions?
 			}
 		}
 
@@ -154,6 +155,7 @@ export default class Project {
 				.filter(client => restartIds.has(client.placeId))
 				.forEach(client => this.partitions.forEach(partition => partition.fullSyncToStudio(client)));
 		}
+		this.loaded = true;
 	}
 
 	private async readConfig(configPath: string) {

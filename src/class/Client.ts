@@ -32,6 +32,9 @@ export default class Client {
 	}
 
 	public async fullSyncProjectToStudio(project: Project) {
+		if (!project.loaded) {
+			return;
+		}
 		const promises = new Array<Promise<Change>>();
 		await Promise.all(project.partitions.map(partition => partition.addChangesRecursive(promises)));
 		const changes = await Promise.all(promises);
@@ -57,9 +60,6 @@ export default class Client {
 		if (this.response) {
 			const payload = new Array<ProjectPayload>();
 
-			let totalChanges = 0;
-			let totalProjects = 0;
-
 			for (const projectName of this.sendQueue.keys()) {
 				const projectQueue = this.sendQueue.get(projectName);
 				if (projectQueue === undefined) {
@@ -70,23 +70,29 @@ export default class Client {
 					const change = projectQueue.changes.get(key);
 					if (change) {
 						changes.push(change);
-						totalChanges++;
 						projectQueue.changes.delete(key);
 					}
 				}
-				if (changes.length > 0 || projectQueue.initial) {
-					totalProjects++;
-					payload.push({ projectName, changes, initial: projectQueue.initial });
+				const initial = projectQueue.initial;
+				if (changes.length > 0 || initial === true) {
+					payload.push({ projectName, changes, initial });
 					projectQueue.initial = false;
 				}
 			}
-
 			if (payload.length > 0) {
 				console.log(
 					"send",
-					payload.map(value => value.projectName + (value.initial ? "*" : "")).join(", "),
-					util.format("totalChanges: %d", totalChanges),
-					this.placeId,
+					payload
+						.map(value =>
+							util.format(
+								"%s%s (%d)",
+								value.projectName,
+								value.initial ? "*" : "",
+								value.changes ? value.changes.length : 0,
+							),
+						)
+						.join(", "),
+					util.format("[%d]", this.placeId),
 				);
 				const res = this.response;
 				this.response = undefined;
@@ -101,7 +107,7 @@ export default class Client {
 		this.writeResponse();
 	}
 
-	public async syncToStudio(projectName: string, changes: Array<Change | Remove>) {
+	public syncToStudio(projectName: string, changes: Array<Change | Remove>) {
 		const projectQueue = this.getProjectQueue(projectName);
 		for (const change of changes) {
 			const changePath = [...change.path];
@@ -113,7 +119,7 @@ export default class Client {
 		this.writeResponse();
 	}
 
-	public async syncChangesFromStudio(projectName: string, changes: Array<Change>) {
+	public syncChangesFromStudio(projectName: string, changes: Array<Change>) {
 		Project.instances
 			.filter(project => project.name === projectName)
 			.forEach(project => project.syncChangesFromStudio(changes));
