@@ -26,6 +26,7 @@ local HEADERS = { ["client-id"] = string.gsub(HttpService:GenerateGUID(false), "
 
 -- error constants
 local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game settings"
+local HTTP_404 = "Connection Error HTTP 404 (HTTP/1.1 404 Not Found)"
 local CURL_PREFIX = "CURL error (curl_easy_perform): "
 local CURL_CONNECT_ERROR = CURL_PREFIX .. "Couldn't connect to server (7)"
 local CURL_TIMEOUT_ERROR = CURL_PREFIX .. "Timeout was reached (28)"
@@ -162,7 +163,8 @@ coroutine.wrap(function()
 				end
 				-- bypass throttle
 				success = true
-			elseif  rawJsonOrError ~= CURL_CONNECT_ERROR
+			elseif  rawJsonOrError ~= HTTP_404
+				and rawJsonOrError ~= CURL_CONNECT_ERROR
 				and rawJsonOrError ~= CURL_TIMEOUT_ERROR
 				and rawJsonOrError ~= CURL_NOTHING_ERROR
 				and rawJsonOrError ~= CURL_RECEIVE_ERROR then
