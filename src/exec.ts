@@ -48,16 +48,14 @@ const DEFAULT_PROJECT_DIR = ".";
 			console.log("Please restart Roblox Studio.");
 		}
 	} else {
-		let projectsAdded = 0;
-		for (const dir of projectFolders) {
-			if (await fs.exists(dir)) {
-				rofresh.addProject(dir);
-				projectsAdded++;
-			}
-		}
-
-		if (projectsAdded === 0) {
+		if (projectFolders.length === 0) {
 			rofresh.addProject(DEFAULT_PROJECT_DIR);
+		} else {
+			for (const dir of projectFolders) {
+				if (await fs.exists(dir)) {
+					rofresh.addProject(dir);
+				}
+			}
 		}
 		rofresh.start();
 	}

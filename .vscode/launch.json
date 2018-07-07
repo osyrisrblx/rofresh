@@ -11,11 +11,10 @@
 			},
 			"program": "${workspaceFolder}/out/exec.js",
 			"args": [
-				// "/mnt/c/Perforce/wwhite_CI/Branches/ClientIntegration/Client/RobloxStudio/RojoDirs/PluginGuiProjects/AnimationEditor"
-				// "./RobloxPlugin/"
-				"../../Nextcloud/Roblox/SwordHeightsRoyal/Shared",
-				"../../Nextcloud/Roblox/SwordHeightsRoyal/Lobby",
-				"../../Nextcloud/Roblox/SwordHeightsRoyal/Arena"
+				"../../Nextcloud/SwordHeightRoyale/projects/Shared",
+				"../../Nextcloud/SwordHeightRoyale/projects/Shared",
+				"../../Nextcloud/SwordHeightRoyale/projects/Lobby",
+				"../../Nextcloud/SwordHeightRoyale/projects/Arena",
 			],
 			"preLaunchTask": "build",
 			"outFiles": [

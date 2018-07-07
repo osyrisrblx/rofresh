@@ -39,7 +39,9 @@ export default class Partition {
 	private isRunning = false;
 	private watcher?: chokidar.FSWatcher;
 	private rbxPath: Array<string>;
+
 	private isSingleFile = false;
+	private isSingleFileSet = false;
 
 	constructor(
 		public readonly project: Project,
@@ -48,12 +50,18 @@ export default class Partition {
 		public readonly target: string,
 	) {
 		this.rbxPath = target.split(RBX_SEPARATOR);
-		(async () => {
+		this.setSingleFile();
+	}
+
+	private async setSingleFile() {
+		if (!this.isSingleFileSet) {
 			this.isSingleFile = (await fs.stat(this.directory)).isFile();
-		})();
+			this.isSingleFileSet = true;
+		}
 	}
 
 	public async addChangesRecursive(changes = new Array<Promise<Change>>(), dir = this.directory) {
+		await this.setSingleFile();
 		if (this.isSingleFile) {
 			changes.push(this.getChangeFromFile(dir));
 		} else {
@@ -143,12 +151,6 @@ export default class Partition {
 		this.project.distributeChangeToStudio(await this.getRemoveFromFile(filePath));
 	}
 
-	public async fullSyncToStudio(client: Client) {
-		const changes = new Array<Promise<Change>>();
-		await this.addChangesRecursive(changes);
-		client.syncToStudio(this.project.name, await Promise.all(changes));
-	}
-
 	public start() {
 		if (!this.isRunning) {
 			this.isRunning = true;
@@ -168,9 +170,6 @@ export default class Partition {
 				.on("change", (filePath: string) => {
 					this.syncChangeToStudio(filePath);
 				});
-			Client.instances
-				.filter(client => this.project.isValidPlaceId(client.placeId))
-				.forEach(client => this.fullSyncToStudio(client));
 		}
 	}
 

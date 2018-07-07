@@ -73,7 +73,6 @@ export default class Project {
 
 	private async applyConfig(config: RofreshConfig) {
 		let restartAll = false;
-		const restartIds = new Set<number>();
 		this.name = config.name;
 		// normalize falsey -> false
 		if (config.allowAnyPlaceId === undefined) {
@@ -81,6 +80,8 @@ export default class Project {
 		}
 		restartAll = restartAll || config.allowAnyPlaceId !== this.allowAnyPlaceId;
 		this.allowAnyPlaceId = config.allowAnyPlaceId === true;
+
+		// is this still necessary?
 		if (!this.allowAnyPlaceId && config.placeIds) {
 			for (const placeId of this.placeIds) {
 				if (config.placeIds.indexOf(placeId) === -1) {
@@ -91,7 +92,6 @@ export default class Project {
 			for (const placeId of config.placeIds) {
 				if (!this.placeIds.has(placeId)) {
 					this._placeIds.add(placeId);
-					restartIds.add(placeId);
 				}
 			}
 		}
@@ -125,7 +125,6 @@ export default class Project {
 			if (!found) {
 				this.partitions.splice(i, 1);
 				part.stop();
-				// TODO: clean studio files for old partitions?
 			}
 		}
 
@@ -141,21 +140,19 @@ export default class Project {
 			if (!found && (await fs.exists(info.path))) {
 				const partition = new Partition(this, info.name, info.path, info.target);
 				this.partitions.push(partition);
-				if (this.isRunning && !restartAll) {
+				if (this.isRunning) {
 					partition.start();
 				}
 			}
 		}
 
-		if (restartAll && this.isRunning) {
-			this.partitions.forEach(partition => partition.stop());
-			this.partitions.forEach(partition => partition.start());
-		} else if (this.isRunning) {
-			Client.instances
-				.filter(client => restartIds.has(client.placeId))
-				.forEach(client => this.partitions.forEach(partition => partition.fullSyncToStudio(client)));
-		}
 		this.loaded = true;
+
+		if (this.isRunning) {
+			Client.instances
+				.filter(client => this.isValidPlaceId(client.placeId))
+				.forEach(client => client.fullSyncProjectToStudio(this));
+		}
 	}
 
 	private async readConfig(configPath: string) {
@@ -194,6 +191,9 @@ export default class Project {
 			console.log("start", "project", this.directory);
 			this.isRunning = true;
 			this.partitions.forEach(partition => partition.start());
+			Client.instances
+				.filter(client => this.isValidPlaceId(client.placeId))
+				.forEach(client => client.fullSyncProjectToStudio(this));
 		}
 	}
 

@@ -33,6 +33,7 @@ export default class Client {
 
 	public async fullSyncProjectToStudio(project: Project) {
 		if (!project.loaded) {
+			console.log("not loaded", project.name);
 			return;
 		}
 		const promises = new Array<Promise<Change>>();
