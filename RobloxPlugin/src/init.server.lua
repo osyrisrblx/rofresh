@@ -6,9 +6,7 @@ local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
 
 -- early out
-if not RunService:IsEdit() then
-	return
-end
+if RunService:IsRunning() then return end
 
 -- imports
 local Project = require(script.Project)
@@ -23,15 +21,37 @@ local OUTPUT_PREFIX = "[Rofresh]"
 local URL_TEMPLATE = "http://localhost:%d"
 local SERVER_URL = string.format(URL_TEMPLATE, PORT)
 local HEADERS = { ["client-id"] = string.gsub(HttpService:GenerateGUID(false), "-", "") }
+local POLL_REQUEST = {
+	Url = SERVER_URL,
+	Method = "GET",
+	Headers = HEADERS
+}
 
 -- error constants
 local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game settings"
-local HTTP_404 = "Connection Error HTTP 404 (HTTP/1.1 404 Not Found)"
-local CURL_PREFIX = "CURL error (curl_easy_perform): "
-local CURL_CONNECT_ERROR = CURL_PREFIX .. "Couldn't connect to server (7)"
-local CURL_TIMEOUT_ERROR = CURL_PREFIX .. "Timeout was reached (28)"
-local CURL_NOTHING_ERROR = CURL_PREFIX .. "Server returned nothing (no headers, no data) (52)"
-local CURL_RECEIVE_ERROR = CURL_PREFIX .. "Failure when receiving data from the peer (56)"
+
+local KNOWN_ERRORS = {
+	"HttpError_InvalidUrl",
+	"HttpError_DnsResolve",
+	"HttpError_ConenctFail",
+	"HttpError_OutOfMemory",
+	"HttpError_Timedout",
+	"HttpError_TooManyRedirects",
+	"HttpError_InvalidRedirect",
+	"HttpError_NetFail",
+	"HttpError_Aborted",
+	"HttpError_SslConnectFail",
+	"HttpError_Unknown",
+}
+
+local function isKnownError(errorMsg)
+	for i = 1, #KNOWN_ERRORS do
+		if errorMsg == KNOWN_ERRORS[i] then
+			return true
+		end
+	end
+	return false
+end
 
 -- output helper functions
 local function wrapPrinter(printer)
@@ -98,11 +118,11 @@ coroutine.wrap(function()
 		local myJobId = {}
 		jobId = myJobId
 
-		local success, rawJsonOrError
+		local success, responseOrError
 		local isFinished = false
 		coroutine.wrap(function()
-			success, rawJsonOrError = pcall(function()
-				return HttpService:GetAsync(SERVER_URL, true, HEADERS)
+			success, responseOrError = pcall(function()
+				return HttpService:RequestAsync(POLL_REQUEST)
 			end)
 			isFinished = true
 		end)()
@@ -114,62 +134,65 @@ coroutine.wrap(function()
 		end
 
 		if success then
+			local response = responseOrError
+
 			if not httpEnabled then
 				httpEnabled = true
 				print("HttpEnabled, begin sync..")
 			end
 
-			if string.len(rawJsonOrError) > 0 then
-				local payloadOrError
-				success, payloadOrError = pcall(function()
-					return HttpService:JSONDecode(rawJsonOrError)
-				end)
-				if success then
-					local payload = payloadOrError
-					if not payload.error then
-						for i = 1, #payload do
-							local projectPayload = payload[i]
-							assert(projectPayload.projectName and projectPayload.projectName ~= "")
-							assert(projectPayload.changes)
+			if response.Success then
+				if string.len(response.Body) > 0 then
+					local payloadOrError
+					success, payloadOrError = pcall(function()
+						return HttpService:JSONDecode(response.Body)
+					end)
+					if success then
+						local payload = payloadOrError
+						if not payload.error then
+							for i = 1, #payload do
+								local projectPayload = payload[i]
+								assert(projectPayload.projectName and projectPayload.projectName ~= "")
+								assert(projectPayload.changes)
 
-							local project = Project.instances[projectPayload.projectName]
-							if not project then
-								project = Project.new(projectPayload.projectName, projectPayload.tagOverride)
-							end
+								local project = Project.instances[projectPayload.projectName]
+								if not project then
+									project = Project.new(projectPayload.projectName, projectPayload.tagOverride)
+								end
 
-							if projectPayload.changes or projectPayload.initial then
-								project:processChanges(projectPayload.changes, projectPayload.initial)
+								if projectPayload.changes or projectPayload.initial then
+									project:processChanges(projectPayload.changes, projectPayload.initial)
+								end
 							end
+						else
+							-- do throttle
+							success = false
+							warn("Server Error", payload.error)
 						end
 					else
-						-- do throttle
-						success = false
-						warn("Server Error", payload.error)
+						warn("JSON Error", payloadOrError, #response.Body, response.Body)
 					end
 				else
-					warn("JSON Error", payloadOrError, #rawJsonOrError, rawJsonOrError)
+					success = false
 				end
 			else
-				success = false
+				warn("Response Failure", response.StatusCode, response.StatusMessage)
 			end
 		else
 			-- HttpService.HttpEnabled prompt
-			if rawJsonOrError == HTTP_NOT_ENABLED then
+			if responseOrError == HTTP_NOT_ENABLED then
 				httpEnabled = false
-				Selection:Set({HttpService})
+				Selection:Set({ HttpService })
 				local prop
 				while prop ~= "HttpEnabled" do
 					prop = HttpService.Changed:Wait()
 				end
 				-- bypass throttle
 				success = true
-			elseif  rawJsonOrError ~= HTTP_404
-				and rawJsonOrError ~= CURL_CONNECT_ERROR
-				and rawJsonOrError ~= CURL_TIMEOUT_ERROR
-				and rawJsonOrError ~= CURL_NOTHING_ERROR
-				and rawJsonOrError ~= CURL_RECEIVE_ERROR then
-				-- silence known common server errors
-				warn("Connection Error", rawJsonOrError)
+			else
+				if not isKnownError(responseOrError) then
+					warn("Http Error", responseOrError)
+				end
 			end
 		end
 
