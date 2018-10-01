@@ -9,7 +9,7 @@ import { getFileContents } from "../utility";
 import Client from "./Client";
 import Partition from "./Partition";
 
-const CONFIG_FILE_NAME = "rofresh.json";
+const CONFIG_FILE_NAMES = ["rofresh.json", "rojo.json"];
 const DEFAULT_PARTITIONS = {
 	default: {
 		path: "src",
@@ -39,18 +39,33 @@ export default class Project {
 		this.setup();
 	}
 
+	private async getConfigPath() {
+		for (const name of CONFIG_FILE_NAMES) {
+			const filePath = path.join(this.directory, name);
+			if (await fs.exists(filePath)) {
+				return filePath;
+			}
+		}
+		this.remove();
+	}
+
 	private async setup() {
 		if (!(await fs.exists(this.directory))) {
 			throw new Error(util.format("Could not find project directory! [ %s ]", this.directory));
 		}
-		const configPath = path.join(this.directory, CONFIG_FILE_NAME);
-		this.configWatcher = chokidar
-			.watch(configPath, {
-				ignoreInitial: true,
-			})
-			.on("change", () => this.readConfig(configPath))
-			.on("unlink", () => this.remove());
-		this.readConfig(configPath);
+		const configPath = await this.getConfigPath();
+		console.log("configPath", configPath);
+		if (configPath) {
+			this.configWatcher = chokidar
+				.watch(configPath, {
+					ignoreInitial: true,
+					interval: 10,
+					usePolling: true,
+				})
+				.on("change", () => this.readConfig(configPath))
+				.on("unlink", () => this.remove());
+			this.readConfig(configPath);
+		}
 	}
 
 	public remove() {

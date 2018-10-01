@@ -6,7 +6,7 @@ local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
 
 -- early out
-if RunService:IsRunning() then return end
+if not RunService:IsEdit() then return end
 
 -- imports
 local Project = require(script.Project)
@@ -20,7 +20,8 @@ local OUTPUT_PREFIX = "[Rofresh]"
 -- static constants
 local URL_TEMPLATE = "http://localhost:%d"
 local SERVER_URL = string.format(URL_TEMPLATE, PORT)
-local HEADERS = { ["client-id"] = string.gsub(HttpService:GenerateGUID(false), "-", "") }
+local CLIENT_ID = string.gsub(HttpService:GenerateGUID(false), "-", "")
+local HEADERS = { ["client-id"] = CLIENT_ID }
 local POLL_REQUEST = {
 	Url = SERVER_URL,
 	Method = "GET",
@@ -31,17 +32,17 @@ local POLL_REQUEST = {
 local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game settings"
 
 local KNOWN_ERRORS = {
-	"HttpError_InvalidUrl",
-	"HttpError_DnsResolve",
-	"HttpError_ConenctFail",
-	"HttpError_OutOfMemory",
-	"HttpError_Timedout",
-	"HttpError_TooManyRedirects",
-	"HttpError_InvalidRedirect",
-	"HttpError_NetFail",
-	"HttpError_Aborted",
-	"HttpError_SslConnectFail",
-	"HttpError_Unknown",
+	"HttpError: InvalidUrl",
+	"HttpError: DnsResolve",
+	"HttpError: ConnectFail",
+	"HttpError: OutOfMemory",
+	"HttpError: Timedout",
+	"HttpError: TooManyRedirects",
+	"HttpError: InvalidRedirect",
+	"HttpError: NetFail",
+	"HttpError: Aborted",
+	"HttpError: SslConnectFail",
+	"HttpError: Unknown",
 }
 
 local function isKnownError(errorMsg)
@@ -213,4 +214,4 @@ game:GetPropertyChangedSignal("PlaceId"):Connect(function()
 	end
 end)
 
-print("Rofresh Studio Plugin running..")
+print("Rofresh Studio Plugin running..", CLIENT_ID)

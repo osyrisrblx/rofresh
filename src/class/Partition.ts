@@ -160,6 +160,8 @@ export default class Partition {
 					ignoreInitial: true,
 					ignored: (filePath: string, stat?: fs.Stats) =>
 						stat && !stat.isDirectory() && !Language.instances.some(lang => filePath.endsWith(lang.ext)),
+					interval: 10,
+					usePolling: true,
 				})
 				.on("unlink", (filePath: string) => {
 					this.syncRemoveToStudio(filePath);

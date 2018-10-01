@@ -1,12 +1,13 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<Meta name="ExplicitAutoJoints">false</Meta>
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Script" referent="RBX19216093405F434EB8CF9A92D6524684">
+	<Item class="Script" referent="RBXE1AC2501F8FC42E59915960FADD950F7">
 		<Properties>
 			<bool name="Disabled">false</bool>
 			<Content name="LinkedSource"><null></null></Content>
 			<string name="Name">RofreshPlugin</string>
-			<string name="ScriptGuid">{927BE2E9-B4BB-4AAA-A3FD-12B057EAF8D5}</string>
+			<string name="ScriptGuid"></string>
 			<ProtectedString name="Source"><![CDATA[-- Rofresh Studio Plugin
 
 -- services
@@ -15,7 +16,7 @@ local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
 
 -- early out
-if RunService:IsRunning() then return end
+if not RunService:IsEdit() then return end
 
 -- imports
 local Project = require(script.Project)
@@ -29,7 +30,8 @@ local OUTPUT_PREFIX = "[Rofresh]"
 -- static constants
 local URL_TEMPLATE = "http://localhost:%d"
 local SERVER_URL = string.format(URL_TEMPLATE, PORT)
-local HEADERS = { ["client-id"] = string.gsub(HttpService:GenerateGUID(false), "-", "") }
+local CLIENT_ID = string.gsub(HttpService:GenerateGUID(false), "-", "")
+local HEADERS = { ["client-id"] = CLIENT_ID }
 local POLL_REQUEST = {
 	Url = SERVER_URL,
 	Method = "GET",
@@ -40,17 +42,17 @@ local POLL_REQUEST = {
 local HTTP_NOT_ENABLED = "Http requests are not enabled. Enable via game settings"
 
 local KNOWN_ERRORS = {
-	"HttpError_InvalidUrl",
-	"HttpError_DnsResolve",
-	"HttpError_ConenctFail",
-	"HttpError_OutOfMemory",
-	"HttpError_Timedout",
-	"HttpError_TooManyRedirects",
-	"HttpError_InvalidRedirect",
-	"HttpError_NetFail",
-	"HttpError_Aborted",
-	"HttpError_SslConnectFail",
-	"HttpError_Unknown",
+	"HttpError: InvalidUrl",
+	"HttpError: DnsResolve",
+	"HttpError: ConnectFail",
+	"HttpError: OutOfMemory",
+	"HttpError: Timedout",
+	"HttpError: TooManyRedirects",
+	"HttpError: InvalidRedirect",
+	"HttpError: NetFail",
+	"HttpError: Aborted",
+	"HttpError: SslConnectFail",
+	"HttpError: Unknown",
 }
 
 local function isKnownError(errorMsg)
@@ -222,10 +224,10 @@ game:GetPropertyChangedSignal("PlaceId"):Connect(function()
 	end
 end)
 
-print("Rofresh Studio Plugin running..")]]></ProtectedString>
+print("Rofresh Studio Plugin running..", CLIENT_ID)]]></ProtectedString>
 			<BinaryString name="Tags">LlJvZnJlc2hfUm9mcmVzaFBsdWdpbg==</BinaryString>
 		</Properties>
-		<Item class="ModuleScript" referent="RBXCF6FA6E2F6D34DECA481961275A2DEF7">
+		<Item class="ModuleScript" referent="RBX9308C84E1E4143D3A877FC3543F543DF">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<string name="Name">Project</string>
