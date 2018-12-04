@@ -4,7 +4,6 @@ import path = require("path");
 
 import { Change, Remove, Update } from "../types";
 import { getFileContents } from "../utility";
-import Client from "./Client";
 import Language from "./Language";
 import Project from "./Project";
 
@@ -180,18 +179,37 @@ export default class Partition {
 			console.log("start", "partition", this.name, path.relative(this.project.directory, this.directory));
 			this.watcher = await nsfw(this.directory, async events => {
 				events = events.filter(filterNsfwEvents);
+
+				// replace RENAMED with DELETED -> CREATED
+				for (let i = 0; i < events.length; i++) {
+					const event = events[i];
+					if (event.action === nsfw.actions.RENAMED) {
+						const deletedEvent: nsfw.Event = {
+							action: nsfw.actions.DELETED,
+							directory: event.directory,
+							file: event.oldFile,
+						};
+						const createdEvent: nsfw.Event = {
+							action: nsfw.actions.CREATED,
+							directory: event.directory,
+							file: event.oldFile,
+						};
+						events.splice(i, 1, deletedEvent, createdEvent);
+					}
+				}
+
 				for (const event of events) {
 					if (event.action === nsfw.actions.RENAMED) {
-					} else {
-						const filePath = path.join(event.directory, event.file);
-						const isFile = await fs.exists(filePath) && (await fs.lstat(filePath)).isFile();
-						if (event.action === nsfw.actions.CREATED && isFile) {
-							await this.syncChangeToStudio(filePath);
-						} else if (event.action === nsfw.actions.MODIFIED && isFile) {
-							await this.syncChangeToStudio(filePath);
-						} else if (event.action === nsfw.actions.DELETED) {
-							await this.syncRemoveToStudio(filePath);
-						}
+						throw new Error("Unexpected RENAMED event!");
+					}
+					const filePath = path.join(event.directory, event.file);
+					const isFile = (await fs.exists(filePath)) && (await fs.lstat(filePath)).isFile();
+					if (event.action === nsfw.actions.CREATED && isFile) {
+						await this.syncChangeToStudio(filePath);
+					} else if (event.action === nsfw.actions.MODIFIED && isFile) {
+						await this.syncChangeToStudio(filePath);
+					} else if (event.action === nsfw.actions.DELETED) {
+						await this.syncRemoveToStudio(filePath);
 					}
 				}
 			});
