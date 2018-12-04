@@ -179,26 +179,20 @@ export default class Partition {
 			this.isRunning = true;
 			console.log("start", "partition", this.name, path.relative(this.project.directory, this.directory));
 			this.watcher = await nsfw(this.directory, async events => {
-				try {
-					events = events.filter(filterNsfwEvents);
-					console.log("EVENTS");
-					for (const event of events) {
-						console.log(event);
-						if (event.action === nsfw.actions.RENAMED) {
-						} else {
-							const filePath = path.join(event.directory, event.file);
-							const isFile = await fs.exists(filePath) && (await fs.lstat(filePath)).isFile();
-							if (event.action === nsfw.actions.CREATED && isFile) {
-								await this.syncChangeToStudio(filePath);
-							} else if (event.action === nsfw.actions.MODIFIED && isFile) {
-								await this.syncChangeToStudio(filePath);
-							} else if (event.action === nsfw.actions.DELETED) {
-								await this.syncRemoveToStudio(filePath);
-							}
+				events = events.filter(filterNsfwEvents);
+				for (const event of events) {
+					if (event.action === nsfw.actions.RENAMED) {
+					} else {
+						const filePath = path.join(event.directory, event.file);
+						const isFile = await fs.exists(filePath) && (await fs.lstat(filePath)).isFile();
+						if (event.action === nsfw.actions.CREATED && isFile) {
+							await this.syncChangeToStudio(filePath);
+						} else if (event.action === nsfw.actions.MODIFIED && isFile) {
+							await this.syncChangeToStudio(filePath);
+						} else if (event.action === nsfw.actions.DELETED) {
+							await this.syncRemoveToStudio(filePath);
 						}
 					}
-				} catch (e) {
-					console.log(e);
 				}
 			});
 			this.watcher.start();
