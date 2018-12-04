@@ -47,16 +47,6 @@ function filterNsfwEvents(curr: nsfw.Event, index: number, events: Array<nsfw.Ev
 	return true;
 }
 
-// TODO: reverse sync
-// function getSubExtensionByType(type: string) {
-// 	for (const pair of FILE_TYPE_EXTENSIONS) {
-// 		if (pair[1] === type) {
-// 			return pair[0];
-// 		}
-// 	}
-// 	return "";
-// }
-
 export default class Partition {
 	private isRunning = false;
 	private watcher?: nsfw.Watcher;
