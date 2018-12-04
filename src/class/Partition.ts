@@ -203,16 +203,16 @@ export default class Partition {
 					}
 				}
 			});
-			this.watcher.start();
+			await this.watcher.start();
 		}
 	}
 
-	public stop() {
+	public async stop() {
 		if (this.isRunning) {
 			this.isRunning = false;
 			console.log("stop watch", "partition", this.name, path.relative(this.project.directory, this.directory));
 			if (this.watcher) {
-				this.watcher.stop();
+				await this.watcher.stop();
 				this.watcher = undefined;
 			}
 		}

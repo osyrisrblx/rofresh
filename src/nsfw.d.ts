@@ -37,8 +37,8 @@ declare module "nsfw" {
 		type Event = nsfw.EventModified | nsfw.EventCreated | nsfw.EventDeleted | nsfw.EventRenamed;
 
 		interface Watcher {
-			start(): void;
-			stop(): void;
+			start(): Promise<void>;
+			stop(): Promise<void>;
 		}
 
 		interface Options {

@@ -65,21 +65,21 @@ export default class Project {
 					}
 				}
 			});
-			this.configWatcher.start();
-			this.readConfig(configPath);
+			await this.configWatcher.start();
+			await this.readConfig(configPath);
 		}
 	}
 
-	public remove() {
+	public async remove() {
 		const index = Project.instances.indexOf(this);
 		if (index > -1) {
 			Project._instances.splice(index, 1);
 		}
 
 		// cleanup
-		this.stop();
+		await this.stop();
 		if (this.configWatcher) {
-			this.configWatcher.stop();
+			await this.configWatcher.stop();
 			this.configWatcher = undefined;
 		}
 	}
@@ -216,11 +216,13 @@ export default class Project {
 		}
 	}
 
-	public stop() {
+	public async stop() {
 		if (this.isRunning) {
 			console.log("stop", "project", this.directory);
 			this.isRunning = false;
-			this.partitions.forEach(partition => partition.stop());
+			for (const partition of this.partitions) {
+				await partition.stop();
+			}
 		}
 	}
 }
