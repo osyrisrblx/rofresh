@@ -74,34 +74,6 @@ _G.rofresh = {}
 _G.rofresh.pluginId = pluginId
 _G.rofresh.debugPrint = debugPrint
 
--- plugin object creation
-do
-	local toolbar = plugin:CreateToolbar("Rofresh")
-
-	local syncSelectionButton = toolbar:CreateButton("Sync Selection", "", "")
-	syncSelectionButton.ClickableWhenViewportHidden = true
-	syncSelectionButton.Click:Connect(function()
-		local changes = {}
-		for _, selected in pairs(Selection:Get()) do
-			debugPrint("syncSelection", selected:GetFullName())
-			for _, descendant in pairs(selected:GetDescendants()) do
-				if descendant:IsA("LuaSourceContainer") then
-					local project = nil
-					table.insert(changes, project:getChangeFromScript(descendant))
-				end
-			end
-		end
-	end)
-
-	-- TODO: remove
-	local debugButton = toolbar:CreateButton("Debug", "", "")
-	debugButton.ClickableWhenViewportHidden = true
-	debugButton.Click:Connect(function()
-		DEBUG = not DEBUG
-		print("debug", DEBUG)
-	end)
-end
-
 local httpEnabled = true
 
 local jobId
@@ -208,7 +180,7 @@ end)()
 local placeId = game.PlaceId
 game:GetPropertyChangedSignal("PlaceId"):Connect(function()
 	if placeId ~= game.PlaceId then
-		_G.rofresh.debugPrint("PlaceId changed, restart request")
+		_G.rofresh.debugPrint("PlaceId changed, restarting request")
 		placeId = game.PlaceId
 		jobId = nil
 	end

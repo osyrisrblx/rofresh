@@ -186,12 +186,4 @@ function Project:getPathFromScript(script)
 	return path
 end
 
-function Project:getChangeFromScript(script)
-	return {
-		type = script.ClassName,
-		source = script.Source,
-		path = self:getPathFromScript(script)
-	}
-end
-
 return Project
