@@ -1,5 +1,5 @@
-import chokidar = require("chokidar");
 import fs = require("mz/fs");
+import nsfw = require("nsfw");
 import path = require("path");
 
 import { Change, Remove, Update } from "../types";
@@ -25,6 +25,29 @@ function getTypeBySubExtension(ext: string) {
 	return null;
 }
 
+function filterNsfwEvents(curr: nsfw.Event, index: number, events: Array<nsfw.Event>) {
+	if (index > 0) {
+		const prev = events[index - 1];
+		if (curr.action === prev.action) {
+			if (curr.action === nsfw.actions.RENAMED && prev.action === nsfw.actions.RENAMED) {
+				if (
+					curr.directory === prev.directory &&
+					curr.newDirectory === prev.newDirectory &&
+					curr.newFile === prev.newFile &&
+					curr.oldFile === prev.oldFile
+				) {
+					return false;
+				}
+			} else if (curr.action !== nsfw.actions.RENAMED && prev.action !== nsfw.actions.RENAMED) {
+				if (curr.directory === prev.directory && curr.file === prev.file) {
+					return false;
+				}
+			}
+		}
+	}
+	return true;
+}
+
 // TODO: reverse sync
 // function getSubExtensionByType(type: string) {
 // 	for (const pair of FILE_TYPE_EXTENSIONS) {
@@ -37,7 +60,7 @@ function getTypeBySubExtension(ext: string) {
 
 export default class Partition {
 	private isRunning = false;
-	private watcher?: chokidar.FSWatcher;
+	private watcher?: nsfw.Watcher;
 	private rbxPath: Array<string>;
 
 	private isSingleFile = false;
@@ -151,27 +174,34 @@ export default class Partition {
 		this.project.distributeChangeToStudio(await this.getRemoveFromFile(filePath));
 	}
 
-	public start() {
+	public async start() {
 		if (!this.isRunning) {
 			this.isRunning = true;
 			console.log("start", "partition", this.name, path.relative(this.project.directory, this.directory));
-			this.watcher = chokidar
-				.watch(this.directory, {
-					ignoreInitial: true,
-					ignored: (filePath: string, stat?: fs.Stats) =>
-						stat && !stat.isDirectory() && !Language.instances.some(lang => filePath.endsWith(lang.ext)),
-					interval: 10,
-					usePolling: true,
-				})
-				.on("unlink", (filePath: string) => {
-					this.syncRemoveToStudio(filePath);
-				})
-				.on("add", (filePath: string) => {
-					this.syncChangeToStudio(filePath);
-				})
-				.on("change", (filePath: string) => {
-					this.syncChangeToStudio(filePath);
-				});
+			this.watcher = await nsfw(this.directory, async events => {
+				try {
+					events = events.filter(filterNsfwEvents);
+					console.log("EVENTS");
+					for (const event of events) {
+						console.log(event);
+						if (event.action === nsfw.actions.RENAMED) {
+						} else {
+							const filePath = path.join(event.directory, event.file);
+							const isFile = await fs.exists(filePath) && (await fs.lstat(filePath)).isFile();
+							if (event.action === nsfw.actions.CREATED && isFile) {
+								await this.syncChangeToStudio(filePath);
+							} else if (event.action === nsfw.actions.MODIFIED && isFile) {
+								await this.syncChangeToStudio(filePath);
+							} else if (event.action === nsfw.actions.DELETED) {
+								await this.syncRemoveToStudio(filePath);
+							}
+						}
+					}
+				} catch (e) {
+					console.log(e);
+				}
+			});
+			this.watcher.start();
 		}
 	}
 
@@ -180,7 +210,7 @@ export default class Partition {
 			this.isRunning = false;
 			console.log("stop watch", "partition", this.name, path.relative(this.project.directory, this.directory));
 			if (this.watcher) {
-				this.watcher.close();
+				this.watcher.stop();
 				this.watcher = undefined;
 			}
 		}

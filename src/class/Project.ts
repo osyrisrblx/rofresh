@@ -1,5 +1,5 @@
-import chokidar = require("chokidar");
 import fs = require("mz/fs");
+import nsfw = require("nsfw");
 import path = require("path");
 import util = require("util");
 
@@ -21,7 +21,7 @@ export default class Project {
 	private static readonly _instances = new Array<Project>();
 	public static readonly instances: ReadonlyArray<Project> = Project._instances;
 
-	private configWatcher?: chokidar.FSWatcher;
+	private configWatcher?: nsfw.Watcher;
 	private isRunning = false;
 	private allowAnyPlaceId = false;
 
@@ -56,14 +56,16 @@ export default class Project {
 		const configPath = await this.getConfigPath();
 		console.log("configPath", configPath);
 		if (configPath) {
-			this.configWatcher = chokidar
-				.watch(configPath, {
-					ignoreInitial: true,
-					interval: 10,
-					usePolling: true,
-				})
-				.on("change", () => this.readConfig(configPath))
-				.on("unlink", () => this.remove());
+			this.configWatcher = await nsfw(configPath, events => {
+				for (const event of events) {
+					if (event.action === nsfw.actions.MODIFIED) {
+						this.readConfig(configPath);
+					} else if (event.action === nsfw.actions.DELETED) {
+						this.remove();
+					}
+				}
+			});
+			this.configWatcher.start();
 			this.readConfig(configPath);
 		}
 	}
@@ -77,7 +79,7 @@ export default class Project {
 		// cleanup
 		this.stop();
 		if (this.configWatcher) {
-			this.configWatcher.close();
+			this.configWatcher.stop();
 			this.configWatcher = undefined;
 		}
 	}
@@ -156,7 +158,7 @@ export default class Project {
 				const partition = new Partition(this, info.name, info.path, info.target);
 				this.partitions.push(partition);
 				if (this.isRunning) {
-					partition.start();
+					await partition.start();
 				}
 			}
 		}
@@ -201,11 +203,13 @@ export default class Project {
 	public async syncChangeFromStudio(change: Change) {}
 	public async syncChangesFromStudio(changes: Array<Change>) {}
 
-	public start() {
+	public async start() {
 		if (!this.isRunning) {
 			console.log("start", "project", this.directory);
 			this.isRunning = true;
-			this.partitions.forEach(partition => partition.start());
+			for (const partition of this.partitions) {
+				await partition.start();
+			}
 			Client.instances
 				.filter(client => this.isValidPlaceId(client.placeId))
 				.forEach(client => client.fullSyncProjectToStudio(this));
