@@ -5,7 +5,6 @@ import Client from "./class/Client";
 import Language from "./class/Language";
 import Project from "./class/Project";
 import Server from "./class/Server";
-import { ClientPayload } from "./types";
 import { writeJson, writeJsonDebug } from "./utility";
 
 const PORT = 8888;
@@ -60,7 +59,11 @@ server.get("/debug", (req, res) => {
 	});
 });
 
-server.listen(PORT);
+try {
+	server.listen(PORT);
+} catch (e) {
+	console.log("e", e);
+}
 
 export { installPlugin, PluginInstallResult } from "./utility";
 

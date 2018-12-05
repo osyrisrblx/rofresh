@@ -91,7 +91,8 @@ export default class Partition {
 	}
 
 	private getUpdateFromFile(filePath: string): Update {
-		const fullName = path.basename(filePath, path.extname(filePath));
+		const fileExt = path.extname(filePath);
+		const fullName = path.basename(filePath, fileExt);
 		const fileTypeExt = path
 			.extname(fullName)
 			.substr(1) // remove leading period
@@ -103,7 +104,7 @@ export default class Partition {
 			.filter(value => value.length > 0)
 			.reduce((accum, value) => accum.concat(...value.split(".")), new Array<string>());
 
-		let changeType = getTypeBySubExtension(fileTypeExt.toLowerCase());
+		let changeType = fileExt === "" ? "Folder" : getTypeBySubExtension(fileTypeExt.toLowerCase());
 		let fileName = path.basename(fullName, "." + fileTypeExt);
 
 		if (!changeType) {

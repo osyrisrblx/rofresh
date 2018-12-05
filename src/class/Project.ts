@@ -205,6 +205,7 @@ export default class Project {
 			console.log("start", "project", this.directory);
 			this.isRunning = true;
 			for (const partition of this.partitions) {
+				console.log("part", partition.name);
 				await partition.start();
 			}
 			Client.instances

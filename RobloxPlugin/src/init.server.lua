@@ -186,4 +186,4 @@ game:GetPropertyChangedSignal("PlaceId"):Connect(function()
 	end
 end)
 
-print("Rofresh Studio Plugin running..", CLIENT_ID)
+print("Rofresh Studio Plugin running..")

@@ -40,7 +40,14 @@ export default class Server {
 
 	public listen(port: number) {
 		if (this.httpServer) {
-			this.httpServer.listen(port);
+			this.httpServer.listen(port).on("error", err => {
+				if ((err as any).errno === "EADDRINUSE") {
+					console.log("Failed to use port 8888. Is Rofresh already running?");
+					process.exit(1);
+				} else {
+					throw err;
+				}
+			});
 		}
 	}
 

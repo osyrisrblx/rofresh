@@ -2,7 +2,7 @@
 	<Meta name="ExplicitAutoJoints">false</Meta>
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Script" referent="RBXE1AC2501F8FC42E59915960FADD950F7">
+	<Item class="Script" referent="RBX1A45B4072B964BCC8E7A7AC4996D2C62">
 		<Properties>
 			<bool name="Disabled">false</bool>
 			<Content name="LinkedSource"><null></null></Content>
@@ -83,34 +83,6 @@ local pluginId = string.gsub(HttpService:GenerateGUID(false), "-", "")
 _G.rofresh = {}
 _G.rofresh.pluginId = pluginId
 _G.rofresh.debugPrint = debugPrint
-
--- plugin object creation
-do
-	local toolbar = plugin:CreateToolbar("Rofresh")
-
-	local syncSelectionButton = toolbar:CreateButton("Sync Selection", "", "")
-	syncSelectionButton.ClickableWhenViewportHidden = true
-	syncSelectionButton.Click:Connect(function()
-		local changes = {}
-		for _, selected in pairs(Selection:Get()) do
-			debugPrint("syncSelection", selected:GetFullName())
-			for _, descendant in pairs(selected:GetDescendants()) do
-				if descendant:IsA("LuaSourceContainer") then
-					local project = nil
-					table.insert(changes, project:getChangeFromScript(descendant))
-				end
-			end
-		end
-	end)
-
-	-- TODO: remove
-	local debugButton = toolbar:CreateButton("Debug", "", "")
-	debugButton.ClickableWhenViewportHidden = true
-	debugButton.Click:Connect(function()
-		DEBUG = not DEBUG
-		print("debug", DEBUG)
-	end)
-end
 
 local httpEnabled = true
 
@@ -218,20 +190,20 @@ end)()
 local placeId = game.PlaceId
 game:GetPropertyChangedSignal("PlaceId"):Connect(function()
 	if placeId ~= game.PlaceId then
-		_G.rofresh.debugPrint("PlaceId changed, restart request")
+		_G.rofresh.debugPrint("PlaceId changed, restarting request")
 		placeId = game.PlaceId
 		jobId = nil
 	end
 end)
 
-print("Rofresh Studio Plugin running..", CLIENT_ID)]]></ProtectedString>
+print("Rofresh Studio Plugin running..")]]></ProtectedString>
 			<BinaryString name="Tags">LlJvZnJlc2hfUm9mcmVzaFBsdWdpbg==</BinaryString>
 		</Properties>
-		<Item class="ModuleScript" referent="RBX9308C84E1E4143D3A877FC3543F543DF">
+		<Item class="ModuleScript" referent="RBX8B3B8D0A72CD4E17986210168AEF7C48">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<string name="Name">Project</string>
-				<string name="ScriptGuid"></string>
+				<string name="ScriptGuid">{1881A587-A120-4139-9DBD-1B792229FD45}</string>
 				<ProtectedString name="Source"><![CDATA[-- Project class
 
 -- services
@@ -390,9 +362,17 @@ function Project:processChanges(changes, initial)
 			end
 		else
 			_G.rofresh.debugPrint("REMOVE", pathStr)
-			local scriptObject = findOnPath(change.path, change.type)
-			if scriptObject then
-				self:unsync(scriptObject)
+			local object = findOnPath(change.path, change.type)
+			if object then
+				if change.type == "Folder" then
+					for _, descendant in pairs(object:GetDescendants()) do
+						if descendant:IsA("LuaSourceContainer") then
+							self:unsync(descendant)
+						end
+					end
+				else
+					self:unsync(object)
+				end
 			end
 		end
 	end
@@ -418,14 +398,6 @@ function Project:getPathFromScript(script)
 		object = object.Parent
 	end
 	return path
-end
-
-function Project:getChangeFromScript(script)
-	return {
-		type = script.ClassName,
-		source = script.Source,
-		path = self:getPathFromScript(script)
-	}
 end
 
 return Project]]></ProtectedString>

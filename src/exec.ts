@@ -3,18 +3,17 @@ const jsLog = console.log;
 console.log = (...args: Array<any>) => jsLog("\x1b[31m[Rofresh]\x1b[0m", ...args);
 
 import fs = require("mz/fs");
-import path = require("path");
 import util = require("util");
 
 import commander = require("commander");
 import rofresh = require("./rofresh");
 
-import * as t from "io-ts";
+import * as io_ts from "io-ts";
 
 const DEFAULT_PROJECT_DIR = ".";
 
 (async () => {
-	const pkgVersion = t.string.decode(require("../package.json").version).getOrElse("N/A");
+	const pkgVersion = io_ts.string.decode(require("../package.json").version).getOrElse("N/A");
 	const projectFolders = new Array<string>();
 
 	commander

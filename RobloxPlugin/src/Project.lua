@@ -156,9 +156,17 @@ function Project:processChanges(changes, initial)
 			end
 		else
 			_G.rofresh.debugPrint("REMOVE", pathStr)
-			local scriptObject = findOnPath(change.path, change.type)
-			if scriptObject then
-				self:unsync(scriptObject)
+			local object = findOnPath(change.path, change.type)
+			if object then
+				if change.type == "Folder" then
+					for _, descendant in pairs(object:GetDescendants()) do
+						if descendant:IsA("LuaSourceContainer") then
+							self:unsync(descendant)
+						end
+					end
+				else
+					self:unsync(object)
+				end
 			end
 		end
 	end
