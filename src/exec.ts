@@ -42,7 +42,6 @@ const DEFAULT_PROJECT_DIR = ".";
 			console.log("Rofresh plugin successfully installed!");
 		} else if (result === rofresh.PluginInstallResult.Failure) {
 			console.log("Rofresh plugin could not be installed automatically!");
-			console.log(util.format("Please install manually from %s", rofresh.PLUGIN_URL));
 		} else if (result === rofresh.PluginInstallResult.PromptRestartStudio) {
 			console.log("Rofresh plugin successfully installed!");
 			console.log("Please restart Roblox Studio.");

@@ -62,8 +62,6 @@ server.get("/debug", (req, res) => {
 
 server.listen(PORT);
 
-export const PLUGIN_URL = "https://www.roblox.com/";
-
 export { installPlugin, PluginInstallResult } from "./utility";
 
 /**
