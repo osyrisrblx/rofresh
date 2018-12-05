@@ -44,28 +44,6 @@ function getClient(req: http.IncomingMessage) {
 
 server.get("/", (req, res) => getClient(req).setResponse(res));
 
-server.post("/", (req, res) => {
-	// TODO
-	const client = getClient(req);
-	let data = "";
-	req.on("close", () => client.disconnect(res))
-		.on("data", chunk => (data += chunk.toString()))
-		.on("end", () => {
-			let clientBody: ClientPayload | undefined;
-			try {
-				clientBody = JSON.parse(data);
-			} catch (e) {}
-			if (clientBody) {
-				const changes = clientBody.changes;
-				const projectId = clientBody.projectName;
-				if (changes && changes.length > 0 && projectId) {
-					client.syncChangesFromStudio(projectId, changes);
-				}
-			}
-		});
-	writeJson(res, { success: true });
-});
-
 server.get("/projects", (req, res) => {
 	const client = getClient(req);
 	writeJson(

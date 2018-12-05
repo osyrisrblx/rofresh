@@ -200,9 +200,6 @@ export default class Project {
 			.forEach(client => client.syncToStudio(this.name, [change]));
 	}
 
-	public async syncChangeFromStudio(change: Change) {}
-	public async syncChangesFromStudio(changes: Array<Change>) {}
-
 	public async start() {
 		if (!this.isRunning) {
 			console.log("start", "project", this.directory);

@@ -33,8 +33,4 @@ export default class Language {
 }
 
 new Language("Lua", ".lua");
-new Language("MoonScript", ".moon", filePath => {
-	return new Promise(resolve => {
-		child_process.exec("moonc -p " + filePath).then(result => resolve(result[0]));
-	});
-});
+new Language("MoonScript", ".moon", async filePath => (await child_process.exec("moonc -p " + filePath))[0]);

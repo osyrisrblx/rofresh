@@ -1,23 +1,23 @@
 import http = require("http");
-import * as t from "io-ts";
+import * as io_ts from "io-ts";
 
-export const PartitionIO = t.interface({
-	path: t.string,
-	target: t.string,
+export const PartitionIO = io_ts.interface({
+	path: io_ts.string,
+	target: io_ts.string,
 });
 
-export const RofreshConfigIO = t.intersection([
-	t.interface({
-		name: t.string,
+export const RofreshConfigIO = io_ts.intersection([
+	io_ts.interface({
+		name: io_ts.string,
 	}),
-	t.partial({
-		allowAnyPlaceId: t.boolean,
-		partitions: t.dictionary(t.string, PartitionIO),
-		placeIds: t.array(t.number),
+	io_ts.partial({
+		allowAnyPlaceId: io_ts.boolean,
+		partitions: io_ts.dictionary(io_ts.string, PartitionIO),
+		placeIds: io_ts.array(io_ts.number),
 	}),
 ]);
 
-export type RofreshConfig = t.TypeOf<typeof RofreshConfigIO>;
+export type RofreshConfig = io_ts.TypeOf<typeof RofreshConfigIO>;
 
 export type RouteCallback = (req: http.IncomingMessage, res: http.ServerResponse) => void;
 

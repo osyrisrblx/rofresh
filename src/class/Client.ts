@@ -120,12 +120,6 @@ export default class Client {
 		this.writeResponse();
 	}
 
-	public syncChangesFromStudio(projectName: string, changes: Array<Change>) {
-		Project.instances
-			.filter(project => project.name === projectName)
-			.forEach(project => project.syncChangesFromStudio(changes));
-	}
-
 	public disconnect(res?: http.ServerResponse) {
 		if (this.response && (res === undefined || res === this.response)) {
 			this.response.end();
